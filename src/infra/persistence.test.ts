@@ -28,7 +28,7 @@ function stateWith(notes: Note[]): BoardState {
 
 function throwingStorage(): Storage {
   return {
-    get length() {
+    get length(): number {
       throw new Error('denied')
     },
     clear: () => {
