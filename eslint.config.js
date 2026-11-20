@@ -34,4 +34,14 @@ export default defineConfig([
       globals: { ...globals.node, ...globals.browser },
     },
   },
+  {
+    // Repo tooling: plain ESM run by Node, no types. `page.evaluate` callbacks
+    // run in the browser, so both global sets are legitimate here.
+    files: ['scripts/**/*.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+      sourceType: 'module',
+    },
+  },
 ])
