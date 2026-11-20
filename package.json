@@ -3,13 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22",
+    "bun": ">=1.2"
+  },
+  "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install chromium firefox",
+    "test:e2e:install": "playwright install chromium firefox webkit",
     "docs:shots": "node scripts/doc-assets.mjs shots",
     "docs:demo": "node scripts/doc-assets.mjs demo",
     "preview": "vite preview"

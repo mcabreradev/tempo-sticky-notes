@@ -322,6 +322,20 @@ body {
   display: flex;
 }
 
+/* Touch screens have no hover: without this the palette would be unreachable.
+   The dots shrink a little so six of them still fit a minimum-width note. */
+@media (hover: none) {
+  .note__palette {
+    display: flex;
+    gap: 3px;
+  }
+
+  .note__dot {
+    width: 11px;
+    height: 11px;
+  }
+}
+
 .note__dot {
   width: 12px;
   height: 12px;

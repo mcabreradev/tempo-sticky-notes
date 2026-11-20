@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const PORT = 4173
-// The assessment's minimum resolution; both projects run at it.
+// The assessment's minimum resolution; every project runs at it.
 const VIEWPORT = { width: 1024, height: 768 }
 
 export default defineConfig({
@@ -20,6 +20,9 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } },
+    // WebKit is the engine that motivated the blocked-storage guard: Safari in
+    // private mode throws on `window.localStorage` itself.
+    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } },
   ],
   // The suite runs against the production build: the bundle the reviewer ships,
   // not the dev server.
