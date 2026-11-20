@@ -15,7 +15,7 @@ Mandatory features from the assessment (all four; at least three were required):
 | 1 | Create a note at a specified position and size | Press on empty board space and drag: a preview rectangle follows the pointer and the note is created with exactly that geometry on release. A plain click creates a default 240×160 note centered on the click, and the toolbar's "+ New note" places a default note at the next free cascading slot. |
 | 2 | Change note size by dragging | Bottom-right corner handle. The top-left corner stays anchored; minimum size is 120×60. |
 | 3 | Move a note by dragging | Press anywhere on the note (its title bar or body) and drag. Pointer capture keeps the note following the pointer outside the element and outside the window. |
-| 4 | Remove a note by dragging it over a "trash" zone | A fixed trash strip across the bottom of the board. It arms when a drag starts, turns red when the dragged note hovers over it, and deletes the note on drop. |
+| 4 | Remove a note by dragging it over a "trash" zone | A fixed trash strip across the bottom of the board. It arms when a drag starts, the dragged note travels into the strip and both turn red when it hovers, and the note is deleted on drop — with a 6-second "Undo" offer. |
 
 Optional features (all five, in the client's preferred order):
 
@@ -23,7 +23,7 @@ Optional features (all five, in the client's preferred order):
 - **II. Bring to front** — pressing a note raises it above overlapping notes (monotonic z-index).
 - **III. localStorage persistence** — the board is saved (debounced) and restored on load; invalid or unavailable storage falls back to an empty board without crashing.
 - **IV. Note colors** — six pastel colors, chosen from swatches on the note's title bar.
-- **V. REST API mock** — every change is also pushed through an asynchronous mock REST client (simulated 250–600 ms latency). The toolbar shows the sync state: local draft, syncing, synced, or failed.
+- **V. REST API mock** — every change is also pushed through an asynchronous mock REST client (simulated 250–600 ms latency). The toolbar shows the sync state (saved locally, syncing, synced), settles back to idle a moment after a successful sync, and offers a **Retry** action when a sync fails.
 
 Keyboard/behavioural details that matter during review: **Escape cancels** an in-flight move or resize and restores the exact previous geometry; a note dragged over the trash and then dragged back out is kept; the board clamps every note to stay fully visible, including after a window resize.
 
@@ -63,7 +63,7 @@ them; bun is what the lockfile and the author's toolchain use.
 - **Move** — drag the note (grab anywhere except the resize handle, the color swatches, or the text
   editor).
 - **Resize** — drag the bottom-right corner handle.
-- **Delete** — drag the note down to the trash strip ("Drop here to delete") and release.
+- **Delete** — drag the note down to the trash strip ("Drop here to delete") and release. An "Undo" toast keeps the deletion reversible for 6 seconds.
 - **Edit text** — double-click the note; Cmd/Ctrl+Enter or clicking away saves, Escape reverts.
 - **Color** — hover a note and pick one of the six swatches in its title bar.
 - **Cancel** — press Escape during any move or resize drag.
@@ -121,31 +121,39 @@ openspec/                OpenSpec planning artifacts: capability specs in `specs
 
 ## Tests and verification
 
-`bun run test` runs 72 tests: geometry and slot-search units, every reducer action (including exact
-cancel-restore), persistence validation and failure modes, the async mock (real latency, scripted
-failure), the drag hook (delta reporting, out-of-element movement, Escape, pointercancel, sequential
-sessions) and full UI interaction tests that drive pointer events through create, move, resize,
-trash deletion, stacking, text editing, colors, restore-from-storage and the sync status machine.
+`bun run test` runs 81 tests: geometry and slot-search units, every reducer action (including exact
+cancel-restore and undo restore), persistence validation and failure modes, the async mock (real
+latency, scripted failure), the drag hook (delta reporting, out-of-element movement, Escape,
+pointercancel, sequential sessions) and full UI interaction tests that drive pointer events through
+create, move, resize, trash deletion, undo, stack ordering, text editing, colors, restore-from-storage
+and the sync status machine (including the retry path).
 
-What was verified manually in a real browser (Chrome, CDP-driven input, viewport forced to
-1024×768): drag-to-create landing at exactly the drawn geometry, click-create centring, minimum-size
-clamping, board-edge clamping, move with preserved grab offset, corner resize with anchored
-top-left, trash arming/danger feedback and deletion on drop, keeping a note dragged out of the
-trash, double-click text editing saved on blur, color change from the palette, reload restoring the
-board from localStorage, and the sync indicator moving to "Synced".
+**Chrome** — verified manually with CDP-driven input at 1024×768: drag-to-create landing at exactly
+the drawn geometry, click-create centring, minimum-size clamping, board-edge clamping, move with
+preserved grab offset, corner resize with anchored top-left, trash arming/danger feedback and
+deletion on drop, keeping a note dragged out of the trash, undo restoring the note, double-click text
+editing saved on blur, color change from the palette, reload restoring the board, and the sync
+indicator settling to "Saved locally".
 
-Not verified: Firefox and Edge (not available in this environment), touch input, and operating
-systems other than macOS.
+**Firefox** — verified with Playwright and real mouse input at 1024×768 (same script, headless): the
+full sequence above passed — create with exact geometry and the expected background colour, move
+(+40/−30), resize (300×190, top-left anchored), the dragged note entering the trash strip with both
+danger states, deletion, undo restoring the note, text edit, colour change, and reload restoring
+text, colour and geometry. Pointer capture is supported and no console or page errors were logged.
+
+Not verified: Microsoft Edge (not available in this environment), touch input, and operating systems
+other than macOS.
 
 ## Known limitations
 
-- No undo/redo, no multi-select, no keyboard-only note movement (Escape and Cmd/Ctrl+Enter are the
-  only in-note shortcuts).
-- A single-trash-zone deletion model; notes cannot be restored after a drop.
+- No multi-select and no keyboard-only note movement (Escape and Cmd/Ctrl+Enter are the only
+  in-note shortcuts).
+- A single-trash-zone deletion model; undo exists only for the last deletion and only for six
+  seconds.
 - The REST mock lives in memory per tab; reloading does not re-read the "server".
 - Notes are clamped to the visible board, so very small windows squeeze note sizes rather than
   offering panning/scrolling of a larger canvas.
-- Text has no length limit and the note does not scroll overflowing text (overflow is hidden).
+- Note text has no length limit; long text scrolls inside the note while editing and reading.
 
 ## Tooling decisions
 
