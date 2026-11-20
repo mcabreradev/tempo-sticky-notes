@@ -37,7 +37,7 @@ but outside the trash zone snaps back above it.
 
 - **I. Text editing** — double-click to edit inline; save with blur or `Cmd`/`Ctrl`+`Enter`, discard with `Escape`.
 - **II. Bring to front** — pressing a note raises it above overlapping notes (monotonic z-index, persisted).
-- **III. localStorage persistence** — the board is saved (debounced) and restored on load; invalid or unavailable storage falls back to an empty board instead of crashing.
+- **III. localStorage persistence** — the board is saved (debounced) and restored on load; invalid or unavailable storage — including a `localStorage` accessor that throws, as in private mode — falls back to an empty board instead of crashing.
 - **IV. Note colors** — six pastel colors from swatches in the note's title bar.
 - **V. REST API mock** — every change is also pushed through an asynchronous mock REST client (250–600 ms of real latency). The toolbar reports the sync state, settles back to idle after a success, and offers **Retry** when a sync fails.
 
@@ -50,8 +50,8 @@ but outside the trash zone snaps back above it.
 | Move | Drag the note | Arrow keys (8 px) |
 | Resize | Drag the bottom-right corner | `Shift` + arrow keys (8 px) |
 | Edit text | Double-click, then `Esc` to revert · `Cmd`/`Ctrl`+`Enter` to save | `Enter` / `F2`; `Escape` leaves the editor and returns focus to the note |
-| Recolor | Hover the note, click a swatch | `Tab` to the swatches, `Space`/`Enter` |
-| Delete | Drag onto the trash strip | `Delete` / `Backspace` |
+| Recolor | Hover the note, click a swatch | `Tab` to the palette, arrows to change colour, `Space`/`Enter` to apply |
+| Delete | Drag onto the trash strip | `Delete` / `Backspace` (focus moves to the neighbour) |
 | Cancel a gesture | `Escape` | `Escape` |
 
 Notes are focusable elements with a visible focus ring and an accessible name built from their text,
@@ -63,24 +63,33 @@ so the board is operable without a pointer.
 the `Note` model and every geometry rule as pure functions: normalising a drag rectangle, enforcing
 minimum and default sizes, clamping inside the board, hit testing and the free-slot search behind
 "+ New note". `src/app/store.ts` is a plain reducer (`create`, `updateGeometry`, `setText`,
-`setColor`, `bringToFront`, `delete`, `restore`, `hydrate`) over `{ notes, zCounter }`, where a
-monotonic counter — not array order — decides stacking. `src/app/NotesProvider.tsx` owns the single
-store instance: it hydrates from `localStorage` inside the lazy `useReducer` initialiser, debounces
-writes, and serialises sync calls so rapid edits coalesce instead of racing. Components only render
-that state and report intent back as actions; nothing outside the tree mutates it.
+`setColor`, `bringToFront`, `delete`, `restore`, `hydrate`, `clampAll`) over `{ notes, zCounter }`,
+where a monotonic counter — not array order — decides stacking, and an action that changes nothing
+returns the same state object: no write, no sync, no render. `src/app/NotesProvider.tsx` owns the
+single store instance: it hydrates from `localStorage` inside the lazy `useReducer` initialiser,
+derives both the debounced write and the serialised sync from the state itself (so rapid edits
+coalesce instead of racing), and exposes **three contexts** — state, dispatch, sync — so a leaf that
+only dispatches, like `Note`, does not re-render every time the board changes. Components only render
+that state and report intent back as actions; nothing outside the tree mutates it. An
+`ErrorBoundary` turns any render throw into a recoverable screen instead of a blank page.
 
-**The four required features are one gesture underneath.** `src/hooks/useDrag.ts` opens a pointer
-session on a primary `pointerdown`, calls `setPointerCapture`, listens on `window` for `pointermove` /
-`pointerup` / `pointercancel`, and cancels on `Escape`. The caller takes a geometry snapshot at
-`pointerdown` and keeps it in the session closure, so cancelling restores exact values instead of
-recomputed ones; create, move and resize are three session factories over one engine. Board geometry
-is measured once per gesture — never per frame — and every coordinate is converted into board space,
-which is why positions survive scrolling, window offsets and the toolbar above the board. Keyboard
-actions call the same clamping helpers, so the two input paths cannot drift apart.
+**Geometry is measured, never declared.** `src/app/boardGeometry.ts` reads the board and the trash
+strip from the DOM and derives the usable drawing area from the strip's own top edge, so the
+stylesheet is the only place the strip height exists and hit testing cannot drift from what is on
+screen. `src/hooks/useDrag.ts` opens a pointer session on a primary `pointerdown`, calls
+`setPointerCapture`, listens on `window` for `pointermove` / `pointerup` / `pointercancel`, cancels on
+`Escape`, and tears every listener down if its host unmounts mid-gesture. The caller takes a geometry
+snapshot at `pointerdown` and keeps it in the session closure, so cancelling restores exact values
+instead of recomputed ones; create, move and resize are three session factories over one engine.
+Board geometry is measured once per gesture — never per frame — and every coordinate is converted
+into board space, which is why positions survive scrolling, window offsets and the toolbar above the
+board. Keyboard actions call the same clamping helpers, so the two input paths cannot drift apart.
 
 **Persistence has two tiers because it has two jobs.** `src/infra/persistence.ts` is authoritative and
 synchronous: a versioned payload (`{ version: 1, notes: [...] }`), a hand-written validator for every
-field, and reads/writes that degrade to an empty board plus a warning instead of throwing.
+field (including the domain's minimum note size), and reads/writes that degrade to an empty board plus
+a warning instead of throwing — including the case where obtaining `window.localStorage` itself
+throws, which is why the access happens inside the guard rather than as a default argument.
 `src/infra/mockApi.ts` is the async REST seam the brief asks for: a `NotesApi` interface plus a mock
 that resolves after real `setTimeout` latency and can be told to fail, which feeds the toolbar's
 syncing / synced / error states. Pointing it at a real endpoint replaces one object where the provider
@@ -99,10 +108,10 @@ is composed; no board code changes.
 
 | Layer | Lives in | Rule it keeps | Covered by |
 |---|---|---|---|
-| Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 27 unit tests |
-| Input | `hooks/useDrag.ts`, `components/Board.tsx` | One gesture engine; geometry measured once per gesture | 6 hook tests + the interaction suite |
-| Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 13 unit tests |
-| View | `components/`, `index.css` | Renders state, reports intent; no note data lives in the DOM | 43 tests (39 interaction + 4 stylesheet) |
+| Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 32 unit tests |
+| Geometry and input | `app/boardGeometry.ts`, `hooks/useDrag.ts`, `components/Board.tsx` | Measured once per gesture; one gesture engine | 4 + 7 unit tests, 45 interaction tests |
+| Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 15 unit tests |
+| View | `components/`, `index.css` | Renders state, reports intent; no note data lives in the DOM | 7 stylesheet + 2 boundary tests |
 
 ## Project layout
 
@@ -110,17 +119,20 @@ is composed; no board code changes.
 src/
   domain/note.ts            Note model, palette, pure geometry helpers
   app/store.ts              Board reducer and actions (single source of truth)
-  app/notesContext.ts       React context and useNotes hook
+  app/notesContext.ts       State / dispatch / sync contexts and their hooks
   app/NotesProvider.tsx     Hydration, debounced persistence, serialised sync, retry
+  app/boardGeometry.ts      Measures the board and the trash strip from the DOM
   hooks/useDrag.ts          Pointer-capture drag engine (create, move, resize, cancel)
-  components/Board.tsx      Board, gesture sessions, trash hit testing, keyboard nudging, undo
+  components/Board.tsx      Board, gesture sessions, keyboard nudging, undo
   components/Note.tsx       Note rendering, text editing, colour palette, keyboard map
+  components/ErrorBoundary.tsx  Recoverable screen instead of a blank page
   components/TrashZone.tsx  The drop strip
   components/Toolbar.tsx    New note, sync status, note count
   infra/persistence.ts      localStorage adapter + schema validation
   infra/mockApi.ts          Asynchronous REST mock
   test/setup.ts             jsdom stubs for PointerEvent capture
-  App.tsx, main.tsx         Composition root
+  test/boardHarness.tsx     Shared board harness for the interaction-style tests
+  App.tsx, main.tsx         Composition root (error boundary wraps the app)
   index.css                 Design tokens, board, notes, states (one stylesheet, no preprocessor)
   *.test.ts(x)              Tests colocated with the code they cover
 e2e/                        Playwright browser suite (interactions, persistence, keyboard)
@@ -128,7 +140,7 @@ playwright.config.ts        Production-build webServer, Chromium and Firefox pro
 tsconfig.e2e.json           Type-checking for the browser suite
 openspec/
   specs/                    6 capability specs (what the system must do)
-  changes/archive/          3 completed, archived changes with proposal, design, tasks and deltas
+  changes/archive/          4 completed, archived changes with proposal, design, tasks and deltas
 docs/                       README screenshot
 ```
 
@@ -138,9 +150,9 @@ consumer.
 ## Testing and verification
 
 ```bash
-bun run test            # unit and interaction tests: 89, in jsdom
+bun run test            # unit and interaction tests: 112, in jsdom
 bun run test:e2e        # browser suite: 24 scenarios × Chromium and Firefox
-bun run lint            # ESLint, flat config
+bun run lint            # ESLint, flat config (React hooks, react-refresh, jsx-a11y)
 bun run build           # tsc -b (strict) + vite build
 ```
 
@@ -155,12 +167,15 @@ bun run test:e2e:install    # playwright install chromium firefox
 | File | Tests | Covers |
 |---|---|---|
 | `domain/note.test.ts` | 16 | Clamping, min/default sizes, rect normalisation, hit testing, free-slot search |
-| `app/store.test.ts` | 11 | Every reducer action, z-ordering, hydrate, restore, unknown ids |
-| `infra/persistence.test.ts` | 10 | Round-trip, version/shape validation, malformed JSON, storage that throws |
+| `app/store.test.ts` | 16 | Every reducer action, z-ordering, no-op actions, clampAll, hydrate, restore, frozen initial state |
+| `app/boardGeometry.test.ts` | 4 | Usable area derived from the measured strip, missing elements, board-space conversion |
+| `infra/persistence.test.ts` | 12 | Round-trip, version/shape/min-size validation, malformed JSON, storage that throws, a blocked storage accessor |
 | `infra/mockApi.test.ts` | 3 | Genuine async resolution, simulated latency, scripted failure |
-| `hooks/useDrag.test.tsx` | 6 | Deltas, movement outside the element, Escape, `pointercancel`, sequential sessions |
-| `index.css.test.ts` | 4 | Stylesheet guard: braces balanced, no Sass-only nesting, a background per note colour, button ink |
+| `hooks/useDrag.test.tsx` | 7 | Deltas, movement outside the element, Escape, `pointercancel`, sequential sessions, unmount teardown |
+| `index.css.test.ts` | 7 | PostCSS AST guard: parses, no Sass-only nesting, a background per note colour, strip height defined once, button ink, `sr-only`, crash screen |
 | `components/board.interactions.test.tsx` | 39 | Pointer and keyboard flows end to end: create/move/resize/clamp/trash/undo/stacking/edit/colour/restore/sync |
+| `components/board.regressions.test.tsx` | 6 | Escape-then-edit, palette roving tabindex, stacking no-op, control-press stacking, focus after delete, viewport clamp |
+| `components/ErrorBoundary.test.tsx` | 2 | Renders children; shows a recoverable screen when a child throws |
 
 ### Browser suite
 
@@ -219,6 +234,21 @@ The brief left these open; each one is a deliberate choice, not an accident.
 - **The browser suite tests the production build**, not the dev server, and it is a separate command:
   jsdom keeps the fast feedback loop, Playwright proves the real thing. Assertions are on computed
   geometry and state, not screenshots, so nothing needs a baseline image.
+- **Three contexts, not one.** State, dispatch and sync are separate providers: `dispatch` never
+  changes, so a note that only dispatches must not re-render when another note moves. Props carry the
+  intents that need board geometry; the context carries the pure state intents.
+- **Sync is derived from state**, not fired from a dispatch wrapper: an action that changes nothing
+  (re-raising the top note, a drag that lands on the same rectangle) writes nothing and syncs nothing.
+- **Geometry is measured from the DOM**, including the trash strip: the stylesheet is the only place
+  the strip height is declared, so hit testing cannot drift from what is rendered.
+- **`pointermove` is not coalesced with `requestAnimationFrame`.** It would change the synchronous
+  contract the interaction tests and the mid-gesture visual states rely on; the render cost was fixed
+  at the source instead — a drag now re-renders one note, not the board.
+- **Accessibility is linted, not remembered**: `eslint-plugin-jsx-a11y` is part of the gate, the
+  palette is a real radio group (one tab stop, arrow keys), the sync announcement has its own live
+  region, and the undo window pauses while the offer is hovered or focused (WCAG 2.2.1).
+- **An error boundary wraps the app**, so a render throw shows a recoverable screen with a Reload
+  action instead of leaving a blank page.
 
 ## License
 
