@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium firefox",
+    "docs:shots": "node scripts/doc-assets.mjs shots",
+    "docs:demo": "node scripts/doc-assets.mjs demo",
     "preview": "vite preview"
   },
   "dependencies": {

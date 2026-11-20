@@ -149,6 +149,7 @@ src/
   infra/                      localStorage adapter + REST mock
   test/                       jsdom stubs and the shared board harness
 e2e/                          Playwright suite, run against the production build
+scripts/doc-assets.mjs        Regenerates the screenshots and the demo GIF
 openspec/                     Capability specs and the archived change history
 ```
 
@@ -186,6 +187,10 @@ and "live change" are asserted against a real media query, not a stub. Selectors
 and interaction state is read from `data-*` attributes, so renaming a style class cannot break the suite. It asserts concrete numbers, so a
 regression names the value that moved: create → `240×160` at `(120, 150)`, move → `+40/−30`, resize →
 `300×190` with the top-left anchored, keyboard → `64,64 → 80,72`.
+
+The media in `docs/` is generated the same way, not hand-cropped: `bun run docs:shots` and
+`bun run docs:demo` drive the production build with Playwright and encode with ffmpeg, so the GIF in
+this README is the app as it ships (`scripts/doc-assets.mjs`).
 
 ## Decisions
 
