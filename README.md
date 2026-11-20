@@ -7,6 +7,9 @@ undo.
 Every gesture is hand-written with Pointer Events and a plain reducer: **no drag-and-drop library, no
 state library, no UI kit**. React DOM is the only runtime dependency.
 
+**[Open the live board →](https://tempo-sticky-notes.vercel.app)** — a static build, no backend: your
+notes live in your own browser, so nothing you type leaves it.
+
 <p>
   <img alt="React 19" src="https://img.shields.io/badge/React-19-087ea4?logo=react&amp;logoColor=white">
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&amp;logoColor=white">
@@ -262,6 +265,10 @@ openspec archive <change>              # applies its deltas to openspec/specs/ a
 
 Built as a front-end take-home: React + TypeScript + Vite, three required features and five optional
 ones, no UI or drag-and-drop library.
+
+Deployed as a static build on Vercel, so the live link always matches `main`. There is no CI pipeline:
+the gates in Testing are run locally before each merge, which is why the badges are counts rather than
+build status.
 
 ## License
 
