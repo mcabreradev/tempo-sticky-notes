@@ -174,8 +174,10 @@ body {
   user-select: none;
   touch-action: none;
   background:
-    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.05) 0 1.5px, transparent 1.5px) 0 0/24px 24px,
-    radial-gradient(circle at 70% 65%, rgba(0, 0, 0, 0.06) 0 1.5px, transparent 1.5px) 12px 12px/28px 28px,
+    radial-gradient(circle at 18% 22%, rgba(90, 60, 25, 0.1) 0 1px, transparent 1.6px) 3px 7px/17px 19px,
+    radial-gradient(circle at 62% 68%, rgba(255, 255, 255, 0.06) 0 1.1px, transparent 1.7px) 9px 4px/23px 21px,
+    radial-gradient(circle at 42% 84%, rgba(60, 35, 10, 0.09) 0 0.9px, transparent 1.4px) 5px 11px/13px 16px,
+    radial-gradient(circle at 80% 15%, rgba(90, 60, 25, 0.07) 0 1.3px, transparent 2px) 1px 3px/29px 31px,
     linear-gradient(155deg, var(--cork-1), var(--cork-2) 55%, var(--cork-3));
 }
 
@@ -202,27 +204,27 @@ body {
     0 1px 2px rgba(50, 30, 10, 0.25),
     0 4px 10px rgba(50, 30, 10, 0.22);
   transition: box-shadow 0.15s ease;
+}
 
-  &--yellow { background: var(--note-yellow); border-bottom: 2px solid var(--note-yellow-edge); }
-  &--green { background: var(--note-green); border-bottom: 2px solid var(--note-green-edge); }
-  &--blue { background: var(--note-blue); border-bottom: 2px solid var(--note-blue-edge); }
-  &--pink { background: var(--note-pink); border-bottom: 2px solid var(--note-pink-edge); }
-  &--purple { background: var(--note-purple); border-bottom: 2px solid var(--note-purple-edge); }
-  &--orange { background: var(--note-orange); border-bottom: 2px solid var(--note-orange-edge); }
+.note--yellow { background: var(--note-yellow); border-bottom: 2px solid var(--note-yellow-edge); }
+.note--green { background: var(--note-green); border-bottom: 2px solid var(--note-green-edge); }
+.note--blue { background: var(--note-blue); border-bottom: 2px solid var(--note-blue-edge); }
+.note--pink { background: var(--note-pink); border-bottom: 2px solid var(--note-pink-edge); }
+.note--purple { background: var(--note-purple); border-bottom: 2px solid var(--note-purple-edge); }
+.note--orange { background: var(--note-orange); border-bottom: 2px solid var(--note-orange-edge); }
 
-  &--dragging {
-    box-shadow:
-      0 3px 6px rgba(50, 30, 10, 0.3),
-      0 12px 26px rgba(50, 30, 10, 0.32);
-    cursor: grabbing;
-  }
+.note--dragging {
+  box-shadow:
+    0 3px 6px rgba(50, 30, 10, 0.3),
+    0 12px 26px rgba(50, 30, 10, 0.32);
+  cursor: grabbing;
+}
 
-  &--danger {
-    opacity: 0.72;
-    outline: 2px dashed var(--danger);
-    outline-offset: 3px;
-    filter: saturate(0.4);
-  }
+.note--danger {
+  opacity: 0.72;
+  outline: 2px dashed var(--danger);
+  outline-offset: 3px;
+  filter: saturate(0.4);
 }
 
 .note__bar {
@@ -263,17 +265,17 @@ body {
   border: 1px solid rgba(60, 35, 10, 0.35);
   padding: 0;
   cursor: pointer;
+}
 
-  &--yellow { background: var(--note-yellow); }
-  &--green { background: var(--note-green); }
-  &--blue { background: var(--note-blue); }
-  &--pink { background: var(--note-pink); }
-  &--purple { background: var(--note-purple); }
-  &--orange { background: var(--note-orange); }
+.note__dot--yellow { background: var(--note-yellow); }
+.note__dot--green { background: var(--note-green); }
+.note__dot--blue { background: var(--note-blue); }
+.note__dot--pink { background: var(--note-pink); }
+.note__dot--purple { background: var(--note-purple); }
+.note__dot--orange { background: var(--note-orange); }
 
-  &.is-active {
-    box-shadow: 0 0 0 2px rgba(60, 35, 10, 0.55);
-  }
+.note__dot.is-active {
+  box-shadow: 0 0 0 2px rgba(60, 35, 10, 0.55);
 }
 
 .note__body {
