@@ -1,188 +1,189 @@
 # Sticky Notes
 
-A single-page desktop app for sticky notes on a cork board: draw a note wherever you want it,
-move it, resize it, and throw it away by dragging it onto the trash strip.
+A single-page desktop app for sticky notes on a cork board: **draw** a note wherever you want it,
+**drag** it around, **resize** it from the corner, **edit** it, **recolor** it, and **throw it away**
+by dropping it on the trash strip.
 
-Built for a front-end take-home assessment: React + TypeScript + Vite, no UI library, no
-ready-made interaction code.
+![The board with six notes on a cork background](docs/sticky-notes.png)
 
-## Implemented features
-
-Mandatory features from the assessment (all four; at least three were required):
-
-| # | Feature | How it works |
-|---|---|---|
-| 1 | Create a note at a specified position and size | Press on empty board space and drag: a preview rectangle follows the pointer and the note is created with exactly that geometry on release. A plain click creates a default 240×160 note centered on the click, and the toolbar's "+ New note" places a default note at the next free cascading slot. |
-| 2 | Change note size by dragging | Bottom-right corner handle. The top-left corner stays anchored; minimum size is 120×60. |
-| 3 | Move a note by dragging | Press anywhere on the note (its title bar or body) and drag. Pointer capture keeps the note following the pointer outside the element and outside the window. |
-| 4 | Remove a note by dragging it over a "trash" zone | A fixed trash strip across the bottom of the board. It arms when a drag starts, the dragged note travels into the strip and both turn red when it hovers, and the note is deleted on drop — with a 6-second "Undo" offer. |
-
-Optional features (all five, in the client's preferred order):
-
-- **I. Text editing** — double-click a note to edit inline; save with blur or Cmd/Ctrl+Enter, discard with Escape.
-- **II. Bring to front** — pressing a note raises it above overlapping notes (monotonic z-index).
-- **III. localStorage persistence** — the board is saved (debounced) and restored on load; invalid or unavailable storage falls back to an empty board without crashing.
-- **IV. Note colors** — six pastel colors, chosen from swatches on the note's title bar.
-- **V. REST API mock** — every change is also pushed through an asynchronous mock REST client (simulated 250–600 ms latency). The toolbar shows the sync state (saved locally, syncing, synced), settles back to idle a moment after a successful sync, and offers a **Retry** action when a sync fails.
-
-Keyboard/behavioural details that matter during review: **Escape cancels** an in-flight move or resize and restores the exact previous geometry; a note dragged over the trash and then dragged back out is kept; the board clamps every note to stay fully visible, including after a window resize.
-
-## Requirements
-
-- [Bun](https://bun.sh) ≥ 1.3 (the lockfile is `bun.lock`).
-- A current Chromium-based browser or Firefox. Desktop only; designed down to 1024×768.
-
-## Install and run
+Built as a front-end take-home assessment. React + TypeScript + Vite, **no UI library, no
+drag-and-drop library** — every gesture is hand-written with Pointer Events so the interaction design
+and the engineering behind it are both visible in the source.
 
 ```bash
 bun install
-bun run dev        # dev server with HMR, http://localhost:5173
+bun run dev        # http://localhost:5173
 ```
 
-Production build and preview:
+Drag on the cork board to draw your first note. Everything else is discoverable from there.
 
-```bash
-bun run build      # type-check (tsc -b) + Vite production build into dist/
-bun run preview    # serve dist/
-```
+## Features
 
-Tests and lint:
+### Required by the assessment — 4 of 4 implemented (three were required)
 
-```bash
-bun run test       # Vitest (jsdom): domain, store, persistence, drag engine, UI interactions
-bun run lint       # ESLint flat config
-```
+| # | Feature | How it works |
+|---|---|---|
+| 1 | Create a note at a specified position and size | Press on empty board space and drag: a preview rectangle follows the pointer and the note is created with exactly that geometry on release. A plain click creates a default 240×160 note centered on the click; the toolbar's "+ New note" places one at the next free cascading slot. |
+| 2 | Change note size by dragging | Bottom-right corner handle. The top-left corner stays anchored; minimum size is 120×60, and a note can never be grown past the board. |
+| 3 | Move a note by dragging | Press anywhere on the note and drag. Pointer capture keeps the note following the pointer outside the element and outside the window. |
+| 4 | Remove a note by dragging it over a trash zone | A fixed strip along the bottom of the board. It arms when a drag starts, the dragged note physically enters the strip, both turn red while hovering, and the note is deleted on drop — with a 6-second **Undo** toast. |
 
-The npm scripts are plain `vite`/`vitest`/`tsc`/`eslint` commands, so any package manager can run
-them; bun is what the lockfile and the author's toolchain use.
+Behaviour that matters during review: **Escape cancels** a move or resize mid-gesture and restores the
+exact previous geometry; a note dragged over the trash and then dragged back out is kept; every note
+is clamped to stay fully visible, including after a window resize; a note released inside the strip
+but outside the trash zone snaps back above it.
 
-## Using the app
+### Optional features — 5 of 5, in the order the brief prefers
 
-- **Create** — drag on empty board space to draw the note; or click for a default note; or press
-  "+ New note".
-- **Move** — drag the note (grab anywhere except the resize handle, the color swatches, or the text
-  editor).
-- **Resize** — drag the bottom-right corner handle.
-- **Delete** — drag the note down to the trash strip ("Drop here to delete") and release. An "Undo" toast keeps the deletion reversible for 6 seconds.
-- **Edit text** — double-click the note; Cmd/Ctrl+Enter or clicking away saves, Escape reverts.
-- **Color** — hover a note and pick one of the six swatches in its title bar.
-- **Cancel** — press Escape during any move or resize drag.
+- **I. Text editing** — double-click to edit inline; save with blur or `Cmd`/`Ctrl`+`Enter`, discard with `Escape`.
+- **II. Bring to front** — pressing a note raises it above overlapping notes (monotonic z-index, persisted).
+- **III. localStorage persistence** — the board is saved (debounced) and restored on load; invalid or unavailable storage falls back to an empty board instead of crashing.
+- **IV. Note colors** — six pastel colors from swatches in the note's title bar.
+- **V. REST API mock** — every change is also pushed through an asynchronous mock REST client (250–600 ms of real latency). The toolbar reports the sync state, settles back to idle after a success, and offers **Retry** when a sync fails.
 
-### Keyboard
+## Using it
 
-Everything the mouse does, a keyboard can do. Notes are focusable (`Tab` / `Shift+Tab` walks them in
-stacking order), and each one carries an accessible label with the start of its text.
+| Action | Mouse | Keyboard |
+|---|---|---|
+| Create | Drag on empty board · click for a default note · "+ New note" | `Tab` to "+ New note", then `Enter` |
+| Select / focus | Press the note (also raises it) | `Tab` / `Shift+Tab` walks the notes in stacking order |
+| Move | Drag the note | Arrow keys (8 px) |
+| Resize | Drag the bottom-right corner | `Shift` + arrow keys (8 px) |
+| Edit text | Double-click, then `Esc` to revert · `Cmd`/`Ctrl`+`Enter` to save | `Enter` / `F2`; `Escape` leaves the editor and returns focus to the note |
+| Recolor | Hover the note, click a swatch | `Tab` to the swatches, `Space`/`Enter` |
+| Delete | Drag onto the trash strip | `Delete` / `Backspace` |
+| Cancel a gesture | `Escape` | `Escape` |
 
-| Keys | Action |
-|---|---|
-| `Tab` | Move focus between notes and their controls |
-| Arrow keys | Move the focused note by 8 px |
-| `Shift` + arrow keys | Resize the focused note by 8 px |
-| `Enter` / `F2` | Edit the note text (Escape leaves the editor and returns focus to the note) |
-| `Delete` / `Backspace` | Delete the focused note — with the same 6-second undo offer |
-| `Cmd`/`Ctrl` + `Enter` | Save while editing |
-
-Creating a note with the "+ New note" button moves focus to it, and restoring a deleted note focuses
-it too.
+Notes are focusable elements with a visible focus ring and an accessible name built from their text,
+so the board is operable without a pointer.
 
 ## Architecture
 
-The app is layered so that behaviour can be tested without a browser. `src/domain/note.ts` holds the
+The app is layered so behaviour can be tested without a browser. `src/domain/note.ts` holds the
 `Note` model and every geometry rule as pure functions — normalising a drag rectangle, enforcing the
-minimum and default sizes, clamping a rectangle inside the board, point-in-rectangle testing and
+minimum and default sizes, clamping a rectangle inside the board, point-in-rectangle hit testing and
 cascading free-slot search for the toolbar button. `src/app/store.ts` is a plain reducer
-(`create`, `updateGeometry`, `setText`, `setColor`, `bringToFront`, `delete`, `hydrate`) over
-`{ notes, zCounter }`, where the monotonic counter — not array order — defines stacking, and
-`src/app/NotesProvider.tsx` owns the single store instance, hydrates it from `localStorage` in the
-lazy `useReducer` initialiser, debounces saves, and serialises async sync calls so rapid edits
+(`create`, `updateGeometry`, `setText`, `setColor`, `bringToFront`, `delete`, `restore`, `hydrate`)
+over `{ notes, zCounter }`, where a monotonic counter — not array order — defines stacking, and
+`src/app/NotesProvider.tsx` owns the single store instance: it hydrates from `localStorage` inside the
+lazy `useReducer` initialiser, debounces writes, and serialises async sync calls so rapid edits
 coalesce instead of racing. The UI is a projection of that state: a `Board` that renders notes
 absolutely positioned in board-space pixels and owns all gesture state, a memoised `Note` that only
-handles its own text editing and palette, a `TrashZone` strip, and a `Toolbar` with the sync
-indicator. Nothing outside the component tree mutates state.
+handles its own text editing, palette and keyboard map, a `TrashZone` strip and a `Toolbar` with the
+sync indicator. Nothing outside the component tree mutates state.
 
-Gestures are one primitive, not four. `src/hooks/useDrag.ts` starts a pointer session on primary
+Gestures are one primitive, not four. `src/hooks/useDrag.ts` starts a pointer session on a primary
 `pointerdown`, calls `setPointerCapture` on the element, listens for `pointermove` / `pointerup` /
 `pointercancel` on `window`, and ends or cancels the session on `Escape`. On `pointerdown` the caller
-captures a geometry snapshot in a closure, so cancellation is exact by construction: create, move
-and resize are three different session factories over the same engine. Board geometry is measured
-once per gesture (never per frame) and every pointer coordinate is converted into board space, which
-keeps positions independent of scroll, window offset and the toolbar above the board.
+captures a geometry snapshot in a closure, which makes cancellation exact by construction: create,
+move and resize are three session factories over the same engine. Board geometry is measured once per
+gesture (never per frame) and every pointer coordinate is converted into board space, so positions are
+independent of scroll, window offset and the toolbar above the board. Keyboard mutations reuse the
+same clamping helpers, so mouse and keyboard cannot drift apart.
 
 Persistence is deliberately two-tiered. `src/infra/persistence.ts` is the authoritative, synchronous
-adapter: a versioned payload (`{ version: 1, notes: [...] }`), a hand-written validator for every
-field (positions finite, color from the known palette, integer z-index), and fail-safe reads/writes
-that degrade to an empty board plus a console warning. `src/infra/mockApi.ts` is the async REST
-seam: a `NotesApi` interface with a `MockRestNotesApi` that resolves with real `setTimeout` latency
-and can be told to fail, which drives the toolbar's syncing/synced/error states. Swapping the mock
-for a real endpoint means replacing one object at the provider's composition point; the board code
-never knows the difference.
+adapter: a versioned payload (`{ version: 1, notes: [...] }`), a hand-written validator for every field
+(finite positions, colour from the known palette, integer z-index) and fail-safe reads/writes that
+degrade to an empty board plus a console warning. `src/infra/mockApi.ts` is the async REST seam: a
+`NotesApi` interface with a `MockRestNotesApi` that resolves after real `setTimeout` latency and can be
+told to fail, which drives the toolbar's syncing / synced / error states. Swapping the mock for a real
+endpoint means replacing one object where the provider is composed; no board code changes.
 
-## Project structure
+## Project layout
 
 ```
 src/
-  domain/note.ts         Note model, palette, pure geometry helpers
-  app/store.ts           Board reducer and actions (single source of truth)
-  app/notesContext.ts    React context and useNotes hook
-  app/NotesProvider.tsx  Store wiring: hydration, debounced persistence, serialised sync
-  hooks/useDrag.ts       Pointer-capture drag engine (move, resize, create, cancel)
-  components/Board.tsx   Board, create/move/resize sessions, trash hit-testing, resize clamping
-  components/Note.tsx    Note rendering, inline text editing, color palette
-  components/TrashZone.tsx
-  components/Toolbar.tsx
-  infra/persistence.ts   localStorage adapter + schema validation
-  infra/mockApi.ts       Asynchronous REST mock
-openspec/                OpenSpec planning artifacts: capability specs in `specs/` and the
-                         completed, archived change `build-sticky-notes-board`
+  domain/note.ts            Note model, palette, pure geometry helpers
+  app/store.ts              Board reducer and actions (single source of truth)
+  app/notesContext.ts       React context and useNotes hook
+  app/NotesProvider.tsx     Hydration, debounced persistence, serialised sync, retry
+  hooks/useDrag.ts          Pointer-capture drag engine (create, move, resize, cancel)
+  components/Board.tsx      Board, gesture sessions, trash hit testing, keyboard nudging, undo
+  components/Note.tsx       Note rendering, text editing, colour palette, keyboard map
+  components/TrashZone.tsx  The drop strip
+  components/Toolbar.tsx    New note, sync status, note count
+  infra/persistence.ts      localStorage adapter + schema validation
+  infra/mockApi.ts          Asynchronous REST mock
+  test/setup.ts             jsdom stubs for PointerEvent capture
+  App.tsx, main.tsx         Composition root
+  index.css                 Design tokens, board, notes, states (one stylesheet, no preprocessor)
+  *.test.ts(x)              Tests colocated with the code they cover
+openspec/
+  specs/                    6 capability specs (what the system must do)
+  changes/archive/          3 completed, archived changes with proposal, design, tasks and deltas
+docs/                       README screenshot
 ```
 
-## Tests and verification
+Nothing else: no `src/utils.ts` dumping ground, no barrel files, no wrapper components without a
+consumer.
 
-`bun run test` runs 88 tests: geometry and slot-search units, every reducer action (including exact
-cancel-restore and undo restore), persistence validation and failure modes, the async mock (real
-latency, scripted failure), the drag hook (delta reporting, out-of-element movement, Escape,
-pointercancel, sequential sessions) and full UI interaction tests that drive pointer *and keyboard*
-events through create, move, resize, trash deletion, undo, stack ordering, text editing, colors,
-restore-from-storage and the sync status machine (including the retry path).
+## Testing and verification
 
-**Chrome** — verified manually with CDP-driven input at 1024×768: drag-to-create landing at exactly
-the drawn geometry, click-create centring, minimum-size clamping, board-edge clamping, move with
-preserved grab offset, corner resize with anchored top-left, trash arming/danger feedback and
-deletion on drop, keeping a note dragged out of the trash, undo restoring the note, double-click text
-editing saved on blur, color change from the palette, reload restoring the board, and the sync
-indicator settling to "Saved locally".
+```bash
+bun run test       # 88 tests, 7 files
+bun run lint       # ESLint, flat config
+bun run build      # tsc -b (strict) + vite build
+```
 
-**Firefox** — verified with Playwright and real mouse input at 1024×768 (same script, headless): the
-full sequence above passed — create with exact geometry and the expected background colour, move
-(+40/−30), resize (300×190, top-left anchored), the dragged note entering the trash strip with both
-danger states, deletion, undo restoring the note, text edit, colour change, and reload restoring
-text, colour and geometry. Pointer capture is supported and no console or page errors were logged.
+| File | Tests | Covers |
+|---|---|---|
+| `domain/note.test.ts` | 16 | Clamping, min/default sizes, rect normalisation, hit testing, free-slot search |
+| `app/store.test.ts` | 11 | Every reducer action, z-ordering, hydrate, restore, unknown ids |
+| `infra/persistence.test.ts` | 10 | Round-trip, version/shape validation, malformed JSON, storage that throws |
+| `infra/mockApi.test.ts` | 3 | Genuine async resolution, simulated latency, scripted failure |
+| `hooks/useDrag.test.tsx` | 6 | Deltas, movement outside the element, Escape, `pointercancel`, sequential sessions |
+| `index.css.test.ts` | 3 | Stylesheet guard: braces balanced, no Sass-only nesting, a background per note colour |
+| `components/board.interactions.test.tsx` | 39 | Pointer and keyboard flows end to end: create/move/resize/clamp/trash/undo/stacking/edit/colour/restore/sync |
 
-**Keyboard, Firefox** — verified with Playwright keyboard events: creating from the toolbar focuses
-the new note (`role="group"`, `tabindex="0"`); arrows moved it 64→80 / 64→72 px; `Shift`+arrows
-resized it 240×160 → 248×168; `Enter` opened the editor, typing worked, `Escape` closed it, discarded
-the draft and returned focus to the note; `Cmd+Enter` saved; `Delete` removed the note and offered
-undo, which restored it with its text and focus; `Tab` from the note reached its colour swatches.
+Browser verification, at 1024×768, with real input events (not synthetic DOM events):
 
-Not verified: Microsoft Edge (not available in this environment), touch input, and operating systems
-other than macOS.
+| Browser | Mouse flows | Keyboard flows | Notes |
+|---|---|---|---|
+| Chrome | ✅ | ✅ | Driven over CDP with real mouse events |
+| Firefox | ✅ | ✅ | Playwright, headless; pointer capture supported, no console or page errors |
+| Edge | ⛔ | ⛔ | Not installed in the verification environment |
 
-## Known limitations
+The Firefox runs asserted concrete values, e.g. create → `(120, 150)` at `240×160` with the expected
+background colour; move → `+40/−30` exactly; resize → `300×190` with the top-left anchored; trash →
+both danger states with the note inside the strip; reload → text, colour and geometry restored;
+keyboard → arrows moved the note `64,64 → 80,72`, `Shift`+arrows resized `240×160 → 248×168`,
+`Escape` discarded the draft and returned focus, `Delete` + Undo restored the note with its text.
 
-- No multi-select.
-- A single-trash-zone deletion model; undo exists only for the last deletion and only for six
-  seconds.
-- The REST mock lives in memory per tab; reloading does not re-read the "server".
-- Notes are clamped to the visible board, so very small windows squeeze note sizes rather than
-  offering panning/scrolling of a larger canvas.
-- Note text has no length limit; long text scrolls inside the note while editing and reading.
+## Decisions and assumptions
 
-## Tooling decisions
+The brief left these open; each one is a deliberate choice, not an accident.
 
-- **Bun** instead of the assessment brief's pnpm: the scaffold already shipped `bun.lock` and bun is
-  this environment's JS/TS toolchain. The scripts are package-manager agnostic.
-- **Vitest + jsdom + Testing Library** (dev dependencies only): the natural runner for Vite, with
-  DOM-level assertions for the interaction specs. No runtime dependency was added; React and React
-  DOM remain the only production dependencies besides the Vite scaffold.
-- **React Compiler** stays enabled from the template (`vite.config.ts`); components are written to be
-  memoisation-friendly (memoised `Note`, stable callbacks via `useCallback`).
+- **Draw-to-create** answers feature 1 as a single gesture: position *and* size chosen together, with
+  a preview before committing. Click and toolbar button exist as fallbacks for discoverability.
+- **Bounds**: default note 240×160, minimum 120×60, 8 px keyboard steps, notes always fully inside the
+  board (no panning of a larger canvas).
+- **Undo**: single-slot, 6-second window, only for deletions. A generic undo stack would be more
+  machinery than this app earns.
+- **Hit testing the trash by pointer position**, not by note overlap: it is the truthful target and
+  behaves identically for tiny notes. The note is still allowed to travel into the strip so the target
+  is physically reachable.
+- **Stacking** uses a monotonic counter instead of array order or timestamps: deterministic, persists
+  cleanly, and a restored note keeps the z-index it had.
+- **Persistence order**: `localStorage` is authoritative and synchronous; the REST mock is an
+  asynchronous mirror behind an interface. No backend was required, so none exists.
+- **TypeScript strict** is enabled explicitly — the Vite template does not ship with it, and typing
+  accuracy is one of the assessment criteria.
+- **Bun** instead of the brief's pnpm: the scaffold already shipped `bun.lock` and bun is this
+  environment's toolchain. The npm scripts are plain `vite` / `vitest` / `tsc` / `eslint` commands, so
+  any package manager can run them.
+- **No runtime dependency was added.** Vitest, jsdom and Testing Library are dev-only; React and React
+  DOM remain the only production dependencies.
+
+## Known limitations and next steps
+
+- No multi-select, no undo for anything other than the last deletion.
+- Touch works through Pointer Events but is untested; the app targets desktop.
+- The REST mock lives in memory per tab, so reloading does not re-read the "server".
+- Very small windows squeeze notes instead of offering a scrollable canvas.
+- Next steps if this grew: 1 px fine nudge with a modifier, multi-select with rubber-band selection,
+  a real API adapter behind the existing `NotesApi` seam, and a Playwright suite committed to the repo
+  (the browser runs above were scripted ad hoc).
+
+## License
+
+No license file: this is assessment material, not a public library.
