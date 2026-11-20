@@ -167,7 +167,9 @@ bun run test:e2e:install    # playwright install chromium firefox
 `e2e/` runs the **production build** (Playwright builds it and serves `vite preview` on port 4173) in
 real Chromium and Firefox at 1024×768, with genuine pointer and keyboard input. It is the reproducible
 version of the manual verification and it covers what jsdom cannot: layout, pointer capture, CSS and
-cross-engine behaviour.
+cross-engine behaviour. Selectors are `data-testid`-based and interaction state is asserted through
+`data-*` attributes (`data-color`, `data-dragging`, `data-over-trash`, `data-state` on the trash strip),
+so renaming a style class cannot break the suite.
 
 | Spec | Scenarios | Covers |
 |---|---|---|

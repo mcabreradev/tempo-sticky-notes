@@ -1,10 +1,14 @@
 import { expect, test } from '@playwright/test'
 import {
+  boardOf,
   createNoteWithButton,
   dragNoteBy,
+  noteAt,
   noteGeometry,
+  notesOf,
   openEmptyBoard,
   SAVE_MODIFIER,
+  syncStatusOf,
 } from './support'
 
 test.beforeEach(async ({ page }) => {
@@ -13,11 +17,11 @@ test.beforeEach(async ({ page }) => {
 
 test('restores geometry, text and colour after a reload', async ({ page }) => {
   await createNoteWithButton(page)
-  await page.locator('.note__body').dblclick()
-  await page.locator('.note__editor').fill('Survive the reload')
+  await page.getByTestId('note-body').dblclick()
+  await page.getByTestId('note-editor').fill('Survive the reload')
   await page.keyboard.press(`${SAVE_MODIFIER}+Enter`)
 
-  const note = page.locator('.note').first()
+  const note = noteAt(page)
   await note.hover()
   await page.getByRole('radio', { name: 'Set note color purple' }).click()
   await dragNoteBy(page, 0, { x: 40, y: 20 })
@@ -26,10 +30,10 @@ test('restores geometry, text and colour after a reload', async ({ page }) => {
   await page.waitForTimeout(400) // let the debounced write land
   await page.reload()
 
-  await expect(page.locator('.note')).toHaveCount(1)
+  await expect(notesOf(page)).toHaveCount(1)
   expect(await noteGeometry(page)).toEqual(beforeReload)
-  await expect(page.locator('.note__body')).toHaveText('Survive the reload')
-  await expect(page.locator('.note')).toHaveClass(/note--purple/)
+  await expect(page.getByTestId('note-body')).toHaveText('Survive the reload')
+  await expect(notesOf(page)).toHaveAttribute('data-color', 'purple')
 })
 
 test('starts empty when the stored payload is corrupt', async ({ page }) => {
@@ -38,14 +42,14 @@ test('starts empty when the stored payload is corrupt', async ({ page }) => {
   )
   await page.reload()
 
-  await expect(page.locator('.board')).toBeVisible()
-  await expect(page.locator('.note')).toHaveCount(0)
+  await expect(boardOf(page)).toBeVisible()
+  await expect(notesOf(page)).toHaveCount(0)
 })
 
 test('reports the async sync lifecycle and settles back to idle', async ({ page }) => {
   await createNoteWithButton(page)
 
-  const status = page.locator('.sync')
+  const status = syncStatusOf(page)
   await expect(status).toContainText('Synced', { timeout: 10_000 })
   await expect(status).toContainText('Saved locally', { timeout: 10_000 })
 })

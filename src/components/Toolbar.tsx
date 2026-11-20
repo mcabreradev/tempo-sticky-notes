@@ -26,10 +26,20 @@ export function Toolbar({
         <h1>Sticky Notes</h1>
         <p className="toolbar__hint">Drag on the cork board to create a note</p>
       </div>
-      <button type="button" className="toolbar__new" onClick={onNewNote}>
+      <button
+        type="button"
+        className="toolbar__new"
+        data-testid="new-note"
+        onClick={onNewNote}
+      >
         + New note
       </button>
-      <div className={`sync sync--${syncStatus}`} aria-live="polite">
+      <div
+        className={`sync sync--${syncStatus}`}
+        data-testid="sync-status"
+        data-status={syncStatus}
+        aria-live="polite"
+      >
         <span className="sync__dot" aria-hidden />
         <span>{STATUS_LABEL[syncStatus]}</span>
         {syncStatus === 'error' && (
