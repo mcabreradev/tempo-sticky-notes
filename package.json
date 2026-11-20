@@ -17,7 +17,8 @@
     "test:e2e:install": "playwright install chromium firefox webkit",
     "docs:shots": "node scripts/doc-assets.mjs shots",
     "docs:demo": "node scripts/doc-assets.mjs demo",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e:edge": "E2E_EDGE=1 playwright test"
   },
   "dependencies": {
     "react": "^19.3.1",
