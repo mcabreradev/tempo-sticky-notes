@@ -322,7 +322,7 @@ describe('undo after deletion', () => {
     expect(restored.style.top).toBe('64px')
   })
 
-  it('hides the undo offer after the timeout', () => {
+  it('hides the undo offer after the timeout', async () => {
     renderBoard()
     const note = createViaButton()
     const body = note.querySelector('.note__body') as HTMLElement
@@ -331,8 +331,11 @@ describe('undo after deletion', () => {
     fireEvent(window, pointer('pointerup', { clientX: 400, clientY: 600 }))
     expect(screen.queryByRole('button', { name: /undo/i })).not.toBeNull()
 
-    act(() => {
-      vi.advanceTimersByTime(8000)
+    // Advancing the clock also drives the debounced sync: its promise settles in
+    // a microtask, so the state updates it triggers must be flushed inside an
+    // async act or React reports them as unwrapped.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000)
     })
     expect(screen.queryByRole('button', { name: /undo/i })).toBeNull()
     expect(noteEls()).toHaveLength(0)
