@@ -31,6 +31,7 @@ function makeSession(): DragSession {
 describe('useDrag', () => {
   function renderProbe(onDragStart: DragStarter): {
     zone: HTMLElement
+    unmount: () => void
   } {
     const Probe = (): ReactElement => {
       const ref = createRef<HTMLDivElement>()
@@ -44,8 +45,8 @@ describe('useDrag', () => {
         />
       )
     }
-    const { getByTestId } = render(<Probe />)
-    return { zone: getByTestId('zone') }
+    const { getByTestId, unmount } = render(<Probe />)
+    return { zone: getByTestId('zone'), unmount }
   }
 
   it('starts a session on primary pointer down and reports deltas', () => {
@@ -143,5 +144,23 @@ describe('useDrag', () => {
       { x: 150, y: 150 },
       expect.anything(),
     )
+  })
+
+  it('removes its window listeners when the host unmounts mid-drag', () => {
+    const session = makeSession()
+    const { zone, unmount } = renderProbe(() => session)
+
+    fireEvent(zone, pointer('pointerdown', { clientX: 10, clientY: 10 }))
+    fireEvent(window, pointer('pointermove', { clientX: 20, clientY: 20 }))
+    expect(session.onMove).toHaveBeenCalledTimes(1)
+
+    unmount()
+    fireEvent(window, pointer('pointermove', { clientX: 40, clientY: 40 }))
+    fireEvent(window, pointer('pointerup', { clientX: 40, clientY: 40 }))
+
+    // No leaked listeners, and no callback into a tree that no longer exists.
+    expect(session.onMove).toHaveBeenCalledTimes(1)
+    expect(session.onEnd).not.toHaveBeenCalled()
+    expect(session.onCancel).not.toHaveBeenCalled()
   })
 })

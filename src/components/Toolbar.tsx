@@ -34,20 +34,24 @@ export function Toolbar({
       >
         + New note
       </button>
+      {/* The live region is its own element: wrapping the whole block made the
+          screen reader announce the count and the Retry button on every save. */}
+      <span className="sr-only" role="status">
+        Sync status: {STATUS_LABEL[syncStatus]}
+      </span>
       <div
         className={`sync sync--${syncStatus}`}
         data-testid="sync-status"
         data-status={syncStatus}
-        aria-live="polite"
       >
         <span className="sync__dot" aria-hidden />
-        <span>{STATUS_LABEL[syncStatus]}</span>
+        <span aria-hidden>{STATUS_LABEL[syncStatus]}</span>
         {syncStatus === 'error' && (
           <button type="button" className="sync__retry" onClick={onRetrySync}>
             Retry
           </button>
         )}
-        <span className="sync__count">
+        <span className="sync__count" aria-hidden>
           {noteCount} {noteCount === 1 ? 'note' : 'notes'}
         </span>
       </div>

@@ -30,3 +30,7 @@ dist-ssr
 test-results/
 playwright-report/
 blob-report/
+
+# Agent worktrees live inside the repo (eslint ignores them too); the ignore
+# belongs here so a fresh clone does not see them as untracked.
+.worktrees/

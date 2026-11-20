@@ -1,8 +1,6 @@
 import { forwardRef } from 'react'
 import type { Ref } from 'react'
 
-export const TRASH_ZONE_HEIGHT = 72
-
 interface TrashZoneProps {
   active: boolean
   danger: boolean
@@ -10,6 +8,8 @@ interface TrashZoneProps {
 
 // The strip is pointer-events: none by design — hit testing is computed
 // from geometry, not DOM events, so a dragged note never gets intercepted.
+// Its height lives in the stylesheet only: the board measures this element
+// instead of duplicating the number in TypeScript.
 export const TrashZone = forwardRef(function TrashZone(
   { active, danger }: TrashZoneProps,
   ref: Ref<HTMLDivElement>,
