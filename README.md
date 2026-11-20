@@ -123,6 +123,9 @@ src/
   App.tsx, main.tsx         Composition root
   index.css                 Design tokens, board, notes, states (one stylesheet, no preprocessor)
   *.test.ts(x)              Tests colocated with the code they cover
+e2e/                        Playwright browser suite (interactions, persistence, keyboard)
+playwright.config.ts        Production-build webServer, Chromium and Firefox projects
+tsconfig.e2e.json           Type-checking for the browser suite
 openspec/
   specs/                    6 capability specs (what the system must do)
   changes/archive/          3 completed, archived changes with proposal, design, tasks and deltas
@@ -135,10 +138,19 @@ consumer.
 ## Testing and verification
 
 ```bash
-bun run test       # 88 tests, 7 files
-bun run lint       # ESLint, flat config
-bun run build      # tsc -b (strict) + vite build
+bun run test            # unit and interaction tests: 89, in jsdom
+bun run test:e2e        # browser suite: 24 scenarios × Chromium and Firefox
+bun run lint            # ESLint, flat config
+bun run build           # tsc -b (strict) + vite build
 ```
+
+The browser suite needs its engines once per machine:
+
+```bash
+bun run test:e2e:install    # playwright install chromium firefox
+```
+
+### Unit and interaction tests
 
 | File | Tests | Covers |
 |---|---|---|
@@ -147,22 +159,34 @@ bun run build      # tsc -b (strict) + vite build
 | `infra/persistence.test.ts` | 10 | Round-trip, version/shape validation, malformed JSON, storage that throws |
 | `infra/mockApi.test.ts` | 3 | Genuine async resolution, simulated latency, scripted failure |
 | `hooks/useDrag.test.tsx` | 6 | Deltas, movement outside the element, Escape, `pointercancel`, sequential sessions |
-| `index.css.test.ts` | 3 | Stylesheet guard: braces balanced, no Sass-only nesting, a background per note colour |
+| `index.css.test.ts` | 4 | Stylesheet guard: braces balanced, no Sass-only nesting, a background per note colour, button ink |
 | `components/board.interactions.test.tsx` | 39 | Pointer and keyboard flows end to end: create/move/resize/clamp/trash/undo/stacking/edit/colour/restore/sync |
 
-Browser verification, at 1024×768, with real input events (not synthetic DOM events):
+### Browser suite
+
+`e2e/` runs the **production build** (Playwright builds it and serves `vite preview` on port 4173) in
+real Chromium and Firefox at 1024×768, with genuine pointer and keyboard input. It is the reproducible
+version of the manual verification and it covers what jsdom cannot: layout, pointer capture, CSS and
+cross-engine behaviour.
+
+| Spec | Scenarios | Covers |
+|---|---|---|
+| `e2e/interactions.spec.ts` | 13 | Create (draw, click, toolbar, minimum size, edge clamping), move with Escape cancel, corner resize, trash arm/hover/delete/undo/drag-out, stacking, text editing, colours |
+| `e2e/persistence.spec.ts` | 3 | Reload restores geometry, text and colour; corrupt payload starts empty; sync reaches `Synced` and settles to `Saved locally` |
+| `e2e/keyboard.spec.ts` | 5 | Focusable notes with labels, arrow move, Shift+arrow resize, Enter/Escape editing, Delete + Undo, tab order into the palette |
+
+Last recorded run: `48 passed` (24 scenarios on each engine, ~25 s), with no browser console errors.
 
 | Browser | Mouse flows | Keyboard flows | Notes |
 |---|---|---|---|
-| Chrome | ✅ | ✅ | Driven over CDP with real mouse events |
-| Firefox | ✅ | ✅ | Playwright, headless; pointer capture supported, no console or page errors |
+| Chromium | ✅ | ✅ | Playwright project, headless |
+| Firefox | ✅ | ✅ | Playwright project, headless; pointer capture supported |
 | Edge | ⛔ | ⛔ | Not installed in the verification environment |
 
-The Firefox runs asserted concrete values, e.g. create → `(120, 150)` at `240×160` with the expected
-background colour; move → `+40/−30` exactly; resize → `300×190` with the top-left anchored; trash →
-both danger states with the note inside the strip; reload → text, colour and geometry restored;
-keyboard → arrows moved the note `64,64 → 80,72`, `Shift`+arrows resized `240×160 → 248×168`,
-`Escape` discarded the draft and returned focus, `Delete` + Undo restored the note with its text.
+Concrete values the suite asserts, so a regression names the number that moved: create → `(120, 150)`
+at `240×160`; click → `(180, 120)`; toolbar → `(64, 64)`; move → `+40/−30` exactly; resize →
+`300×190` with the top-left anchored; drawn oversized → clamped to `900×638` at `top: 0`; keyboard →
+`64,64 → 80,72` and `240×160 → 248×168`.
 
 ## Decisions and assumptions
 
@@ -186,8 +210,11 @@ The brief left these open; each one is a deliberate choice, not an accident.
 - **Bun** instead of the brief's pnpm: the scaffold already shipped `bun.lock` and bun is this
   environment's toolchain. The npm scripts are plain `vite` / `vitest` / `tsc` / `eslint` commands, so
   any package manager can run them.
-- **No runtime dependency was added.** Vitest, jsdom and Testing Library are dev-only; React and React
-  DOM remain the only production dependencies.
+- **No runtime dependency was added.** Vitest, jsdom, Testing Library and Playwright are dev-only;
+  React and React DOM remain the only production dependencies.
+- **The browser suite tests the production build**, not the dev server, and it is a separate command:
+  jsdom keeps the fast feedback loop, Playwright proves the real thing. Assertions are on computed
+  geometry and state, not screenshots, so nothing needs a baseline image.
 
 ## License
 
