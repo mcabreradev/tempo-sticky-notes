@@ -164,11 +164,22 @@ openspec/                     Capability specs and the archived change history
 ```bash
 bun run test        # 144 unit and interaction tests (jsdom)
 bun run test:e2e    # 93 browser scenarios: 31 × Chromium, Firefox and WebKit
+bun run test:e2e:edge  # the same 31 in the installed Microsoft Edge: 124 in total
 bun run lint        # ESLint: react-hooks, react-refresh, jsx-a11y
 bun run build       # tsc -b (strict) + vite build
 ```
 
-The browser suite needs its engines once per machine: `bun run test:e2e:install`.
+The browser suite needs its engines once per machine: `bun run test:e2e:install`. Edge is the exception —
+it is not a Playwright download but the browser installed on the machine
+(`brew install --cask microsoft-edge`), so its project joins the run only when `E2E_EDGE=1` is set and
+the default command keeps working on a machine that has never opened Edge.
+
+| Browser the assessment names | Verified with | Result |
+|---|---|---|
+| Google Chrome | Playwright's Chromium build, `Desktop Chrome` at 1024×768 | 31/31 |
+| Mozilla Firefox | Playwright's Firefox build | 31/31 |
+| Microsoft Edge | The installed Edge **158.0.4370.33**, `channel: 'msedge'` | 31/31 |
+| WebKit (not required) | Playwright's WebKit build — Safari's engine | 31/31 |
 
 | File | Tests | Covers |
 |---|---|---|
@@ -188,10 +199,10 @@ The browser suite needs its engines once per machine: `bun run test:e2e:install`
 The component suite runs through the **React Compiler**, exactly like the production build, so a
 compiler bailout cannot hide until deploy.
 
-`e2e/` builds the app, serves `vite preview` and drives real Chromium, Firefox and **WebKit** at
-1024×768 with genuine pointer and keyboard input — the parts jsdom cannot see: layout, pointer capture,
-CSS and cross-engine behaviour. WebKit is the engine that motivated the blocked-storage guard: Safari
-in private mode throws when the storage object is obtained. The theme spec emulates the operating
+`e2e/` builds the app, serves `vite preview` and drives real Chromium, Firefox, WebKit and **Microsoft
+Edge** at 1024×768 with genuine pointer and keyboard input — the parts jsdom cannot see: layout, pointer
+capture, CSS and cross-engine behaviour. WebKit is the engine that motivated the blocked-storage guard:
+Safari in private mode throws when the storage object is obtained. The theme spec emulates the operating
 system's scheme, so "system", "override" and "live change" are asserted against a real media query, not
 a stub, and a touch emulation asserts the palette is reachable without hover. Selectors are
 `data-testid`-based and interaction state is read from `data-*` attributes, so renaming a style class

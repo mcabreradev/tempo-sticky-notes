@@ -23,7 +23,15 @@ export default defineConfig({
     // WebKit is the engine that motivated the blocked-storage guard: Safari in
     // private mode throws on `window.localStorage` itself.
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } },
-  ],
+    // Edge is named by the assessment and is Chromium-based, but "same engine"
+    // is an argument, not a test. It runs the same suite from the installed
+    // browser (brew install --cask microsoft-edge) and is opt-in, so a machine
+    // without Edge can still run the default three: `bun run test:e2e:edge`.
+    {
+      name: 'edge',
+      use: { ...devices['Desktop Edge'], channel: 'msedge', viewport: VIEWPORT },
+    },
+  ].filter((project) => project.name !== 'edge' || process.env.E2E_EDGE === '1'),
   // The suite runs against the production build: the bundle the reviewer ships,
   // not the dev server.
   webServer: {
