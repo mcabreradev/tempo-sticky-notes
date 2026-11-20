@@ -59,35 +59,50 @@ so the board is operable without a pointer.
 
 ## Architecture
 
-The app is layered so behaviour can be tested without a browser. `src/domain/note.ts` holds the
-`Note` model and every geometry rule as pure functions — normalising a drag rectangle, enforcing the
-minimum and default sizes, clamping a rectangle inside the board, point-in-rectangle hit testing and
-cascading free-slot search for the toolbar button. `src/app/store.ts` is a plain reducer
-(`create`, `updateGeometry`, `setText`, `setColor`, `bringToFront`, `delete`, `restore`, `hydrate`)
-over `{ notes, zCounter }`, where a monotonic counter — not array order — defines stacking, and
-`src/app/NotesProvider.tsx` owns the single store instance: it hydrates from `localStorage` inside the
-lazy `useReducer` initialiser, debounces writes, and serialises async sync calls so rapid edits
-coalesce instead of racing. The UI is a projection of that state: a `Board` that renders notes
-absolutely positioned in board-space pixels and owns all gesture state, a memoised `Note` that only
-handles its own text editing, palette and keyboard map, a `TrashZone` strip and a `Toolbar` with the
-sync indicator. Nothing outside the component tree mutates state.
+**Three layers, one direction of data flow: pure rules → state → view.** `src/domain/note.ts` holds
+the `Note` model and every geometry rule as pure functions: normalising a drag rectangle, enforcing
+minimum and default sizes, clamping inside the board, hit testing and the free-slot search behind
+"+ New note". `src/app/store.ts` is a plain reducer (`create`, `updateGeometry`, `setText`,
+`setColor`, `bringToFront`, `delete`, `restore`, `hydrate`) over `{ notes, zCounter }`, where a
+monotonic counter — not array order — decides stacking. `src/app/NotesProvider.tsx` owns the single
+store instance: it hydrates from `localStorage` inside the lazy `useReducer` initialiser, debounces
+writes, and serialises sync calls so rapid edits coalesce instead of racing. Components only render
+that state and report intent back as actions; nothing outside the tree mutates it.
 
-Gestures are one primitive, not four. `src/hooks/useDrag.ts` starts a pointer session on a primary
-`pointerdown`, calls `setPointerCapture` on the element, listens for `pointermove` / `pointerup` /
-`pointercancel` on `window`, and ends or cancels the session on `Escape`. On `pointerdown` the caller
-captures a geometry snapshot in a closure, which makes cancellation exact by construction: create,
-move and resize are three session factories over the same engine. Board geometry is measured once per
-gesture (never per frame) and every pointer coordinate is converted into board space, so positions are
-independent of scroll, window offset and the toolbar above the board. Keyboard mutations reuse the
-same clamping helpers, so mouse and keyboard cannot drift apart.
+**The four required features are one gesture underneath.** `src/hooks/useDrag.ts` opens a pointer
+session on a primary `pointerdown`, calls `setPointerCapture`, listens on `window` for `pointermove` /
+`pointerup` / `pointercancel`, and cancels on `Escape`. The caller takes a geometry snapshot at
+`pointerdown` and keeps it in the session closure, so cancelling restores exact values instead of
+recomputed ones; create, move and resize are three session factories over one engine. Board geometry
+is measured once per gesture — never per frame — and every coordinate is converted into board space,
+which is why positions survive scrolling, window offsets and the toolbar above the board. Keyboard
+actions call the same clamping helpers, so the two input paths cannot drift apart.
 
-Persistence is deliberately two-tiered. `src/infra/persistence.ts` is the authoritative, synchronous
-adapter: a versioned payload (`{ version: 1, notes: [...] }`), a hand-written validator for every field
-(finite positions, colour from the known palette, integer z-index) and fail-safe reads/writes that
-degrade to an empty board plus a console warning. `src/infra/mockApi.ts` is the async REST seam: a
-`NotesApi` interface with a `MockRestNotesApi` that resolves after real `setTimeout` latency and can be
-told to fail, which drives the toolbar's syncing / synced / error states. Swapping the mock for a real
-endpoint means replacing one object where the provider is composed; no board code changes.
+**Persistence has two tiers because it has two jobs.** `src/infra/persistence.ts` is authoritative and
+synchronous: a versioned payload (`{ version: 1, notes: [...] }`), a hand-written validator for every
+field, and reads/writes that degrade to an empty board plus a warning instead of throwing.
+`src/infra/mockApi.ts` is the async REST seam the brief asks for: a `NotesApi` interface plus a mock
+that resolves after real `setTimeout` latency and can be told to fail, which feeds the toolbar's
+syncing / synced / error states. Pointing it at a real endpoint replaces one object where the provider
+is composed; no board code changes.
+
+```
+ pointer / keyboard
+        │
+        ▼
+     Board ───────────────► reducer (pure rules) ───► NotesProvider
+  (gestures, hit test)                                  ├─ localStorage   authoritative, validated
+        │                                               └─ NotesApi mock  async, serialised
+        ▼
+  Note · TrashZone · Toolbar   ◄── re-rendered from state only, never mutated directly
+```
+
+| Layer | Lives in | Rule it keeps | Covered by |
+|---|---|---|---|
+| Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 27 unit tests |
+| Input | `hooks/useDrag.ts`, `components/Board.tsx` | One gesture engine; geometry measured once per gesture | 6 hook tests + the interaction suite |
+| Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 13 unit tests |
+| View | `components/`, `index.css` | Renders state, reports intent; no note data lives in the DOM | 43 tests (39 interaction + 4 stylesheet) |
 
 ## Project layout
 
@@ -173,16 +188,6 @@ The brief left these open; each one is a deliberate choice, not an accident.
   any package manager can run them.
 - **No runtime dependency was added.** Vitest, jsdom and Testing Library are dev-only; React and React
   DOM remain the only production dependencies.
-
-## Known limitations and next steps
-
-- No multi-select, no undo for anything other than the last deletion.
-- Touch works through Pointer Events but is untested; the app targets desktop.
-- The REST mock lives in memory per tab, so reloading does not re-read the "server".
-- Very small windows squeeze notes instead of offering a scrollable canvas.
-- Next steps if this grew: 1 px fine nudge with a modifier, multi-select with rubber-band selection,
-  a real API adapter behind the existing `NotesApi` seam, and a Playwright suite committed to the repo
-  (the browser runs above were scripted ad hoc).
 
 ## License
 
