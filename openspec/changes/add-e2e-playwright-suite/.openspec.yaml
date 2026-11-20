@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-11-20
+# The suite verifies existing requirements; it introduces no behaviour of its
+# own, so no capability delta is authored for this change.
+skip_specs: true
