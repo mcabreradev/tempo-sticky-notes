@@ -50,6 +50,7 @@ export function Board() {
   const [createPreview, setCreatePreview] = useState<Rect | null>(null)
   const [noteDrag, setNoteDrag] = useState<NoteDragInfo | null>(null)
   const [removedNote, setRemovedNote] = useState<NoteModel | null>(null)
+  const [focusNoteId, setFocusNoteId] = useState<NoteId | null>(null)
   const { startDrag } = useDrag()
 
   // The undo offer is time-boxed: after a moment the deletion is final.
@@ -93,7 +94,45 @@ export function Board() {
   }
 
   const createNote = (rect: Rect) => {
-    dispatch({ type: 'create', note: makeNote(rect) })
+    const note = makeNote(rect)
+    dispatch({ type: 'create', note })
+    setFocusNoteId(note.id)
+  }
+
+  const deleteNote = (note: NoteModel) => {
+    setRemovedNote(note)
+    dispatch({ type: 'delete', id: note.id })
+  }
+
+  // Keyboard parity: the same geometry rules the pointer gestures use.
+  const nudgeNote = (note: NoteModel, deltaX: number, deltaY: number) => {
+    const { size } = boardGeometry()
+    dispatch({
+      type: 'updateGeometry',
+      id: note.id,
+      rect: clampRectToBounds(
+        { x: note.x + deltaX, y: note.y + deltaY, width: note.width, height: note.height },
+        size,
+      ),
+    })
+  }
+
+  const nudgeResizeNote = (
+    note: NoteModel,
+    deltaWidth: number,
+    deltaHeight: number,
+  ) => {
+    const { size } = boardGeometry()
+    dispatch({
+      type: 'updateGeometry',
+      id: note.id,
+      rect: {
+        x: note.x,
+        y: note.y,
+        width: clamp(note.width + deltaWidth, MIN_NOTE_WIDTH, size.width - note.x),
+        height: clamp(note.height + deltaHeight, MIN_NOTE_HEIGHT, size.height - note.y),
+      },
+    })
   }
 
   const handleBoardPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -184,8 +223,7 @@ export function Board() {
             toBoardPoint(origin, clientEndPoint),
           )
           if (overTrash) {
-            setRemovedNote(note)
-            dispatch({ type: 'delete', id: note.id })
+            deleteNote(note)
             return
           }
           if (latestRect) {
@@ -285,8 +323,12 @@ export function Board() {
             key={note.id}
             note={note}
             dragVisual={noteDrag?.id === note.id ? noteDrag.visual : null}
+            autoFocus={note.id === focusNoteId}
             onStartMove={startMove}
             onStartResize={startResize}
+            onNudge={nudgeNote}
+            onNudgeResize={nudgeResizeNote}
+            onDelete={deleteNote}
           />
         ))}
         {createPreview && (
@@ -309,6 +351,7 @@ export function Board() {
               className="undo-toast__action"
               onClick={() => {
                 dispatch({ type: 'restore', note: removedNote })
+                setFocusNoteId(removedNote.id)
                 setRemovedNote(null)
               }}
             >

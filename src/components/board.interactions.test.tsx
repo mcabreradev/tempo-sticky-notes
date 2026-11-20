@@ -366,6 +366,80 @@ describe('trash zone hover feedback', () => {
   })
 })
 
+describe('keyboard interaction', () => {
+  it('exposes every note as a focusable element in the tab order', () => {
+    renderBoard()
+    createViaButton()
+    createViaButton()
+    const groups = screen.getAllByRole('group')
+    expect(groups).toHaveLength(2)
+    for (const group of groups) {
+      expect(group.getAttribute('tabindex')).toBe('0')
+    }
+  })
+
+  it('moves the focused note with the arrow keys', () => {
+    renderBoard()
+    const note = createViaButton()
+    note.focus()
+    fireEvent.keyDown(note, { key: 'ArrowRight' })
+    fireEvent.keyDown(note, { key: 'ArrowRight' })
+    fireEvent.keyDown(note, { key: 'ArrowDown' })
+    expect(note.style.left).toBe('80px')
+    expect(note.style.top).toBe('72px')
+  })
+
+  it('clamps keyboard moves to the board edges', () => {
+    renderBoard()
+    const note = createViaButton()
+    note.focus()
+    for (let i = 0; i < 30; i += 1) {
+      fireEvent.keyDown(note, { key: 'ArrowLeft' })
+      fireEvent.keyDown(note, { key: 'ArrowUp' })
+    }
+    expect(note.style.left).toBe('0px')
+    expect(note.style.top).toBe('0px')
+  })
+
+  it('resizes the focused note with Shift+Arrow', () => {
+    renderBoard()
+    const note = createViaButton()
+    note.focus()
+    fireEvent.keyDown(note, { key: 'ArrowRight', shiftKey: true })
+    fireEvent.keyDown(note, { key: 'ArrowDown', shiftKey: true })
+    expect(note.style.width).toBe('248px')
+    expect(note.style.height).toBe('168px')
+  })
+
+  it('deletes the focused note with Delete and offers undo', () => {
+    renderBoard()
+    const note = createViaButton()
+    note.focus()
+    fireEvent.keyDown(note, { key: 'Delete' })
+    expect(noteEls()).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: /undo/i }))
+    expect(noteEls()).toHaveLength(1)
+  })
+
+  it('starts editing with Enter and returns with Escape', () => {
+    renderBoard()
+    const note = createViaButton()
+    note.focus()
+    fireEvent.keyDown(note, { key: 'Enter' })
+    const editor = note.querySelector('.note__editor') as HTMLTextAreaElement
+    expect(editor).not.toBeNull()
+    expect(document.activeElement).toBe(editor)
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(note.querySelector('.note__editor')).toBeNull()
+  })
+
+  it('moves the new note into focus after creating it from the toolbar', () => {
+    renderBoard()
+    const note = createViaButton()
+    expect(document.activeElement).toBe(note)
+  })
+})
+
 describe('stacking order', () => {
   it('brings a pressed note to the front', () => {
     renderBoard()
