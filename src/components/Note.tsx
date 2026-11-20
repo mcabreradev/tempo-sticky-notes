@@ -6,10 +6,7 @@ import type {
 import { NOTE_COLORS } from '../domain/note'
 import type { NoteColor, Note as NoteModel } from '../domain/note'
 import { useBoardDispatch } from '../app/notesContext'
-
-export interface NoteDragVisual {
-  overTrash: boolean
-}
+import type { NoteDragVisual } from '../hooks/useNoteGestures'
 
 const KEYBOARD_STEP_PX = 8
 
