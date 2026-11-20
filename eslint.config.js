@@ -8,9 +8,10 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   // Agent worktrees live inside the repo; linting them duplicates every file
   // and blows up on tsconfigRootDir.
-  globalIgnores(['dist', '.worktrees']),
+  globalIgnores(['dist', '.worktrees', 'test-results', 'playwright-report']),
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: ['e2e/**', 'playwright.config.ts'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -19,6 +20,14 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+  {
+    // The browser suite runs in Node, not in the browser it drives.
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
     },
   },
 ])
