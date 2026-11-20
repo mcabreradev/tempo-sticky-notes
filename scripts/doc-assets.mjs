@@ -112,7 +112,8 @@ async function demo() {
     colorScheme: 'light',
   })
   const page = await context.newPage()
-  await seed(page, 'light')
+  // System, so the recording opens on the default and then shows both overrides.
+  await seed(page, 'system')
   await sleep(800)
 
   const board = await page.getByTestId('board').boundingBox()
@@ -172,6 +173,12 @@ async function demo() {
   await page.keyboard.press('ArrowLeft')
   await page.keyboard.press('Shift+ArrowDown')
   await sleep(900)
+
+  // The theme control: the palette repaint is the point, so hold each state.
+  await page.getByTestId('theme-dark').click()
+  await sleep(1500)
+  await page.getByTestId('theme-light').click()
+  await sleep(1100)
 
   await context.close()
   await browser.close()
