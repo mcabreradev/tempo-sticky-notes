@@ -1,4 +1,4 @@
-import { NOTE_COLORS } from '../domain/note'
+import { MIN_NOTE_HEIGHT, MIN_NOTE_WIDTH, NOTE_COLORS } from '../domain/note'
 import type { Note } from '../domain/note'
 import type { BoardState } from '../app/store'
 
@@ -25,8 +25,10 @@ function isStoredNote(value: unknown): value is Note {
     isFiniteNumber(candidate.y) &&
     isFiniteNumber(candidate.width) &&
     isFiniteNumber(candidate.height) &&
-    candidate.width >= 0 &&
-    candidate.height >= 0 &&
+    // The domain floor, not just "positive": a persisted 0x0 note would be
+    // unreachable on the board and impossible to resize back into existence.
+    candidate.width >= MIN_NOTE_WIDTH &&
+    candidate.height >= MIN_NOTE_HEIGHT &&
     typeof candidate.text === 'string' &&
     typeof candidate.color === 'string' &&
     (NOTE_COLORS as readonly string[]).includes(candidate.color) &&
@@ -65,9 +67,29 @@ export function parseBoard(raw: string): Note[] | null {
   return payload.notes
 }
 
-export function loadBoard(storage: Storage = window.localStorage): Note[] | null {
+// Reading `window.localStorage` can itself throw (Safari private mode, blocked
+// third-party storage, cookies disabled). That happens while a default
+// parameter would be evaluated — outside any try — so the access is resolved
+// here instead: a throw must never escape into the reducer initialiser.
+function resolveStorage(storage?: Storage): Storage | null {
+  if (storage) {
+    return storage
+  }
   try {
-    const raw = storage.getItem(BOARD_STORAGE_KEY)
+    return window.localStorage
+  } catch (error) {
+    console.warn('[persistence] localStorage is unavailable:', error)
+    return null
+  }
+}
+
+export function loadBoard(storage?: Storage): Note[] | null {
+  const store = resolveStorage(storage)
+  if (!store) {
+    return null
+  }
+  try {
+    const raw = store.getItem(BOARD_STORAGE_KEY)
     if (raw === null) {
       return null
     }
@@ -82,12 +104,13 @@ export function loadBoard(storage: Storage = window.localStorage): Note[] | null
   }
 }
 
-export function saveBoard(
-  state: BoardState,
-  storage: Storage = window.localStorage,
-): void {
+export function saveBoard(state: BoardState, storage?: Storage): void {
+  const store = resolveStorage(storage)
+  if (!store) {
+    return
+  }
   try {
-    storage.setItem(BOARD_STORAGE_KEY, serializeBoard(state))
+    store.setItem(BOARD_STORAGE_KEY, serializeBoard(state))
   } catch (error) {
     console.warn('[persistence] saving the board failed:', error)
   }
