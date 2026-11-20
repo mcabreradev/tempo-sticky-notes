@@ -16,6 +16,10 @@ describe('clamp', () => {
     expect(clamp(4, 10, 20)).toBe(10)
   })
 
+  it('prefers the minimum when the range is inverted (tiny board)', () => {
+    expect(clamp(240, 120, 90)).toBe(120)
+  })
+
   it('clamps above the maximum', () => {
     expect(clamp(25, 10, 20)).toBe(20)
   })

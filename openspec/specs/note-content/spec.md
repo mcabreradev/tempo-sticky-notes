@@ -32,3 +32,12 @@ A note SHALL offer a fixed palette of colors. Activating a palette option SHALL 
 #### Scenario: Recolor a note from its palette
 - **WHEN** the user picks another color from a note's palette control
 - **THEN** the note's background changes to that color and stays that color across interactions
+
+### Requirement: Long note text remains reachable
+
+Text longer than the note body SHALL scroll inside the note instead of being clipped, both while
+editing and while reading.
+
+#### Scenario: Overflowing text scrolls
+- **WHEN** a note's text exceeds the body height
+- **THEN** the body scrolls vertically and the text can be read without resizing the note

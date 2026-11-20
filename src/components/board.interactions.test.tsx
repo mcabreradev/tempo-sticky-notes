@@ -295,6 +295,77 @@ describe('trash zone deletion', () => {
   })
 })
 
+describe('undo after deletion', () => {
+  it('offers an undo that restores the deleted note exactly', () => {
+    renderBoard()
+    const note = createViaButton()
+    // Give it some content so restoration is meaningful.
+    const body = note.querySelector('.note__body') as HTMLElement
+    fireEvent.doubleClick(body)
+    const editor = note.querySelector('.note__editor') as HTMLTextAreaElement
+    fireEvent.change(editor, { target: { value: 'Delete me later' } })
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set note color pink' }))
+
+    const bodyEl = note.querySelector('.note__body') as HTMLElement
+    fireEvent(bodyEl, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 400, clientY: 600 }))
+    fireEvent(window, pointer('pointerup', { clientX: 400, clientY: 600 }))
+    expect(noteEls()).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: /undo/i }))
+
+    const restored = onlyNote()
+    expect(restored.textContent).toContain('Delete me later')
+    expect(restored.className).toContain('note--pink')
+    expect(restored.style.left).toBe('64px')
+    expect(restored.style.top).toBe('64px')
+  })
+
+  it('hides the undo offer after the timeout', () => {
+    renderBoard()
+    const note = createViaButton()
+    const body = note.querySelector('.note__body') as HTMLElement
+    fireEvent(body, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 400, clientY: 600 }))
+    fireEvent(window, pointer('pointerup', { clientX: 400, clientY: 600 }))
+    expect(screen.queryByRole('button', { name: /undo/i })).not.toBeNull()
+
+    act(() => {
+      vi.advanceTimersByTime(8000)
+    })
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull()
+    expect(noteEls()).toHaveLength(0)
+  })
+})
+
+describe('trash zone hover feedback', () => {
+  it('lets the dragged note visually enter the trash strip', () => {
+    renderBoard()
+    const note = createViaButton()
+    const body = note.querySelector('.note__body') as HTMLElement
+    // Board usable height is 568 (640 minus the 72px strip); a 160px note is
+    // capped at top=408 there. While dragging it may travel into the strip.
+    fireEvent(body, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 74, clientY: 600 }))
+    const topWhileDragging = Number.parseInt(note.style.top)
+    expect(topWhileDragging).toBeGreaterThan(408)
+    expect(note.classList).toContain('note--danger')
+    fireEvent.keyDown(window, { key: 'Escape' })
+  })
+
+  it('snaps the note back above the strip when released outside the trash', () => {
+    renderBoard()
+    const note = createViaButton()
+    const body = note.querySelector('.note__body') as HTMLElement
+    fireEvent(body, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 74, clientY: 550 }))
+    fireEvent(window, pointer('pointerup', { clientX: 74, clientY: 550 }))
+    expect(note.style.top).toBe('408px')
+    expect(noteEls()).toHaveLength(1)
+  })
+})
+
 describe('stacking order', () => {
   it('brings a pressed note to the front', () => {
     renderBoard()
@@ -435,10 +506,40 @@ describe('async sync through the mock REST API', () => {
     renderBoard(api)
     createViaButton()
     await waitFor(() => {
-      expect(screen.getByText('Sync failed (mock API)')).toBeTruthy()
+      expect(screen.getByText('Sync failed')).toBeTruthy()
     }, { timeout: 2000 })
     // The board stays usable after a failed sync.
     expect(noteEls()).toHaveLength(1)
+  })
+
+  it('settles back to the idle state a moment after a successful sync', async () => {
+    vi.useRealTimers()
+    const api = new MockRestNotesApi({ minDelayMs: 5, maxDelayMs: 5 })
+    renderBoard(api)
+    createViaButton()
+    await waitFor(() => {
+      expect(screen.getByText('Synced')).toBeTruthy()
+    }, { timeout: 2000 })
+    await waitFor(() => {
+      expect(screen.getByText('Saved locally')).toBeTruthy()
+    }, { timeout: 3000 })
+  })
+
+  it('offers a manual retry after a failed sync', async () => {
+    vi.useRealTimers()
+    const api = new MockRestNotesApi({ minDelayMs: 5, maxDelayMs: 5 })
+    api.failNext()
+    renderBoard(api)
+    createViaButton()
+    await waitFor(() => {
+      expect(screen.getByText('Sync failed')).toBeTruthy()
+    }, { timeout: 2000 })
+    const callsBefore = api.callCount
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+    await waitFor(() => {
+      expect(screen.getByText('Synced')).toBeTruthy()
+    }, { timeout: 3000 })
+    expect(api.callCount).toBeGreaterThan(callsBefore)
   })
 
   it('serializes overlapping saves instead of racing them', async () => {

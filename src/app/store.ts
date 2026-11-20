@@ -15,6 +15,7 @@ export type BoardAction =
   | { type: 'setColor'; id: NoteId; color: NoteColor }
   | { type: 'bringToFront'; id: NoteId }
   | { type: 'delete'; id: NoteId }
+  | { type: 'restore'; note: Note }
   | { type: 'hydrate'; notes: Note[] }
 
 function patchNote(
@@ -72,6 +73,12 @@ export function boardReducer(
       const notes = { ...state.notes }
       delete notes[action.id]
       return { ...state, notes }
+    }
+    case 'restore': {
+      return {
+        notes: { ...state.notes, [action.note.id]: action.note },
+        zCounter: Math.max(state.zCounter, action.note.zIndex),
+      }
     }
     case 'hydrate': {
       const notes: Record<NoteId, Note> = {}

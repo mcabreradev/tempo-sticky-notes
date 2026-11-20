@@ -23,6 +23,7 @@ import { TrashZone, TRASH_ZONE_HEIGHT } from './TrashZone'
 
 // Below this travel the gesture is a click, not a draw.
 const CLICK_SLOP_PX = 4
+const UNDO_WINDOW_MS = 6000
 
 interface NoteDragInfo {
   id: NoteId
@@ -43,12 +44,22 @@ function makeNote(rect: Rect): NoteModel {
 }
 
 export function Board() {
-  const { state, dispatch, syncStatus } = useNotes()
+  const { state, dispatch, syncStatus, retrySync } = useNotes()
   const boardRef = useRef<HTMLDivElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
   const [createPreview, setCreatePreview] = useState<Rect | null>(null)
   const [noteDrag, setNoteDrag] = useState<NoteDragInfo | null>(null)
+  const [removedNote, setRemovedNote] = useState<NoteModel | null>(null)
   const { startDrag } = useDrag()
+
+  // The undo offer is time-boxed: after a moment the deletion is final.
+  useEffect(() => {
+    if (!removedNote) {
+      return
+    }
+    const timer = setTimeout(() => setRemovedNote(null), UNDO_WINDOW_MS)
+    return () => clearTimeout(timer)
+  }, [removedNote])
 
   // Board geometry is measured once per gesture: the viewport cannot change
   // mid-drag in a trustworthy way, and measuring per frame would thrash layout.
@@ -59,6 +70,9 @@ export function Board() {
         width: rect.width,
         height: Math.max(0, rect.height - TRASH_ZONE_HEIGHT),
       },
+      // Moves may travel across the whole board, trash strip included, so the
+      // dragged note can visually reach the bin; drops snap back to `size`.
+      fullSize: { width: rect.width, height: rect.height },
       origin: { x: rect.left, y: rect.top } as Point,
     }
   }
@@ -138,7 +152,7 @@ export function Board() {
     event: ReactPointerEvent<HTMLElement>,
   ) => {
     startDrag(event, () => {
-      const { size, origin } = boardGeometry()
+      const { size, fullSize, origin } = boardGeometry()
       const trash = trashRectOnBoard(origin)
       const from: Rect = {
         x: note.x,
@@ -152,7 +166,7 @@ export function Board() {
         onMove: (deltaX, deltaY, clientMovePoint) => {
           const rect = clampRectToBounds(
             { x: from.x + deltaX, y: from.y + deltaY, width: from.width, height: from.height },
-            size,
+            fullSize,
           )
           latestRect = rect
           dispatch({ type: 'updateGeometry', id: note.id, rect })
@@ -170,11 +184,16 @@ export function Board() {
             toBoardPoint(origin, clientEndPoint),
           )
           if (overTrash) {
+            setRemovedNote(note)
             dispatch({ type: 'delete', id: note.id })
             return
           }
           if (latestRect) {
-            dispatch({ type: 'updateGeometry', id: note.id, rect: latestRect })
+            dispatch({
+              type: 'updateGeometry',
+              id: note.id,
+              rect: clampRectToBounds(latestRect, size),
+            })
           }
         },
         onCancel: () => {
@@ -254,6 +273,7 @@ export function Board() {
         noteCount={notes.length}
         syncStatus={syncStatus}
         onNewNote={addNoteFromToolbar}
+        onRetrySync={retrySync}
       />
       <div
         className="board"
@@ -280,6 +300,21 @@ export function Board() {
             }}
             aria-hidden
           />
+        )}
+        {removedNote && (
+          <div className="undo-toast" role="status" aria-live="polite">
+            <span>Note deleted</span>
+            <button
+              type="button"
+              className="undo-toast__action"
+              onClick={() => {
+                dispatch({ type: 'restore', note: removedNote })
+                setRemovedNote(null)
+              }}
+            >
+              Undo
+            </button>
+          </div>
         )}
         <TrashZone
           ref={trashRef}

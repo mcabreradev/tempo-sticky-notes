@@ -8,6 +8,7 @@ export interface NotesContextValue {
   state: BoardState
   dispatch: Dispatch<BoardAction>
   syncStatus: SyncStatus
+  retrySync: () => void
 }
 
 export const NotesContext = createContext<NotesContextValue | null>(null)

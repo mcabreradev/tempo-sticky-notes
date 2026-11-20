@@ -4,16 +4,22 @@ interface ToolbarProps {
   noteCount: number
   syncStatus: SyncStatus
   onNewNote: () => void
+  onRetrySync: () => void
 }
 
 const STATUS_LABEL: Record<SyncStatus, string> = {
-  idle: 'Local draft',
+  idle: 'Saved locally',
   syncing: 'Syncing…',
   synced: 'Synced',
-  error: 'Sync failed (mock API)',
+  error: 'Sync failed',
 }
 
-export function Toolbar({ noteCount, syncStatus, onNewNote }: ToolbarProps) {
+export function Toolbar({
+  noteCount,
+  syncStatus,
+  onNewNote,
+  onRetrySync,
+}: ToolbarProps) {
   return (
     <header className="toolbar">
       <div className="toolbar__brand">
@@ -26,6 +32,11 @@ export function Toolbar({ noteCount, syncStatus, onNewNote }: ToolbarProps) {
       <div className={`sync sync--${syncStatus}`} aria-live="polite">
         <span className="sync__dot" aria-hidden />
         <span>{STATUS_LABEL[syncStatus]}</span>
+        {syncStatus === 'error' && (
+          <button type="button" className="sync__retry" onClick={onRetrySync}>
+            Retry
+          </button>
+        )}
         <span className="sync__count">
           {noteCount} {noteCount === 1 ? 'note' : 'notes'}
         </span>
