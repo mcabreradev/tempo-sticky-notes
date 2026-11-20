@@ -68,6 +68,23 @@ them; bun is what the lockfile and the author's toolchain use.
 - **Color** — hover a note and pick one of the six swatches in its title bar.
 - **Cancel** — press Escape during any move or resize drag.
 
+### Keyboard
+
+Everything the mouse does, a keyboard can do. Notes are focusable (`Tab` / `Shift+Tab` walks them in
+stacking order), and each one carries an accessible label with the start of its text.
+
+| Keys | Action |
+|---|---|
+| `Tab` | Move focus between notes and their controls |
+| Arrow keys | Move the focused note by 8 px |
+| `Shift` + arrow keys | Resize the focused note by 8 px |
+| `Enter` / `F2` | Edit the note text (Escape leaves the editor and returns focus to the note) |
+| `Delete` / `Backspace` | Delete the focused note — with the same 6-second undo offer |
+| `Cmd`/`Ctrl` + `Enter` | Save while editing |
+
+Creating a note with the "+ New note" button moves focus to it, and restoring a deleted note focuses
+it too.
+
 ## Architecture
 
 The app is layered so that behaviour can be tested without a browser. `src/domain/note.ts` holds the
@@ -121,12 +138,12 @@ openspec/                OpenSpec planning artifacts: capability specs in `specs
 
 ## Tests and verification
 
-`bun run test` runs 81 tests: geometry and slot-search units, every reducer action (including exact
+`bun run test` runs 88 tests: geometry and slot-search units, every reducer action (including exact
 cancel-restore and undo restore), persistence validation and failure modes, the async mock (real
 latency, scripted failure), the drag hook (delta reporting, out-of-element movement, Escape,
-pointercancel, sequential sessions) and full UI interaction tests that drive pointer events through
-create, move, resize, trash deletion, undo, stack ordering, text editing, colors, restore-from-storage
-and the sync status machine (including the retry path).
+pointercancel, sequential sessions) and full UI interaction tests that drive pointer *and keyboard*
+events through create, move, resize, trash deletion, undo, stack ordering, text editing, colors,
+restore-from-storage and the sync status machine (including the retry path).
 
 **Chrome** — verified manually with CDP-driven input at 1024×768: drag-to-create landing at exactly
 the drawn geometry, click-create centring, minimum-size clamping, board-edge clamping, move with
@@ -141,13 +158,18 @@ full sequence above passed — create with exact geometry and the expected backg
 danger states, deletion, undo restoring the note, text edit, colour change, and reload restoring
 text, colour and geometry. Pointer capture is supported and no console or page errors were logged.
 
+**Keyboard, Firefox** — verified with Playwright keyboard events: creating from the toolbar focuses
+the new note (`role="group"`, `tabindex="0"`); arrows moved it 64→80 / 64→72 px; `Shift`+arrows
+resized it 240×160 → 248×168; `Enter` opened the editor, typing worked, `Escape` closed it, discarded
+the draft and returned focus to the note; `Cmd+Enter` saved; `Delete` removed the note and offered
+undo, which restored it with its text and focus; `Tab` from the note reached its colour swatches.
+
 Not verified: Microsoft Edge (not available in this environment), touch input, and operating systems
 other than macOS.
 
 ## Known limitations
 
-- No multi-select and no keyboard-only note movement (Escape and Cmd/Ctrl+Enter are the only
-  in-note shortcuts).
+- No multi-select.
 - A single-trash-zone deletion model; undo exists only for the last deletion and only for six
   seconds.
 - The REST mock lives in memory per tab; reloading does not re-read the "server".

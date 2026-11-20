@@ -347,9 +347,16 @@ body {
 .note__bar:focus-visible,
 .note__dot:focus-visible,
 .note__resize:focus-visible,
-.toolbar__new:focus-visible {
+.toolbar__new:focus-visible,
+.sync__retry:focus-visible,
+.undo-toast__action:focus-visible {
   outline: 2px solid #2f6fd0;
   outline-offset: 2px;
+}
+
+.note:focus-visible {
+  outline: 3px solid #2f6fd0;
+  outline-offset: 3px;
 }
 
 /* --- Trash zone --- */
