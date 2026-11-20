@@ -39,8 +39,9 @@ Drag on the cork board to make your first note. Everything else is discoverable 
 
 Also in: **inline text editing** (blur or `⌘`/`Ctrl`+`Enter` saves, `Esc` discards) · **bring to
 front** on press · **localStorage persistence** that survives reloads and refuses to crash on invalid
-or blocked storage · **six pastel colours** · **an async REST mirror** that reports syncing, synced and
-failed, and offers Retry.
+or blocked storage · **six pastel colours** · **a three-way theme control** (system, light, dark) that
+remembers the choice and applies it before the first paint · **an async REST mirror** that reports
+syncing, synced and failed, and offers Retry.
 
 The edge cases are the part worth reviewing: `Esc` cancels a move or resize and restores the exact
 previous geometry, a note dragged over the bin and back out is kept, every note is clamped inside the
@@ -61,6 +62,7 @@ The board is fully operable without a mouse.
 | Recolor | Hover, click a swatch | `Tab` into the palette, arrows to change, `Space`/`Enter` |
 | Delete | Drag onto the strip | `Delete` / `Backspace` (focus moves to the neighbour) |
 | Cancel a gesture | `Esc` | `Esc` |
+| Theme | System · Light · Dark in the toolbar | `Tab` to it, `Enter` |
 
 Notes are focusable groups with a visible ring, an accessible name built from their text, a role
 description and their shortcuts announced. The palette is a real radio group — one tab stop, arrow
@@ -70,7 +72,14 @@ part of the lint gate, not a good intention.
 
 ## Light and dark
 
-The board follows `prefers-color-scheme`; both themes live in the same stylesheet, no JavaScript.
+Three explicit options in the toolbar: **System** follows the OS (and reacts to a live change),
+**Light** and **Dark** override it. The choice is remembered under `sticky-notes-theme-v1`, kept out of
+the board payload so a theme change never triggers a save or a sync.
+
+The palette is resolved in one place — `app/theme.ts` turns a preference plus the system scheme into
+`data-theme="light|dark"` on the document root, and the stylesheet keys two token blocks off that
+attribute instead of duplicating a `prefers-color-scheme` copy. A short inline script in `index.html`
+applies the stored preference before the bundle boots, so a reload never flashes the wrong theme.
 
 | Light | Dark |
 |---|---|
@@ -117,6 +126,7 @@ pointer / keyboard
 | Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 32 unit tests |
 | Geometry and input | `app/boardGeometry.ts`, `hooks/`, `components/Board.tsx` | Measured once per gesture; one engine, three sessions | 11 + 45 tests |
 | Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 15 unit tests |
+| Preferences | `app/theme.ts`, `app/useTheme.ts`, `components/ThemeToggle.tsx` | Resolved once, written to the root, read back by the control | 11 + 4 tests |
 | View | `components/`, `index.css` | Renders state, reports intent; no note data in the DOM | 9 tests |
 
 ```
@@ -126,11 +136,14 @@ src/
   app/notesContext.ts         State / dispatch / sync contexts
   app/NotesProvider.tsx       Hydration, debounced persistence, serialised sync, retry
   app/boardGeometry.ts        Measures the board and the strip
+  app/theme.ts                Theme preference: parse, resolve, persist, apply
+  app/useTheme.ts             Hydrates the preference, follows the OS in System mode
   hooks/useDrag.ts            Pointer-capture drag engine
   hooks/useNoteGestures.ts    Create, move and resize as session factories
   components/Board.tsx        Composition: store, undo, focus, keyboard, layout
   components/Note.tsx         Rendering, editing, palette, keyboard map
-  components/Toolbar.tsx      New note, sync status, note count
+  components/Toolbar.tsx      New note, theme control, sync status, note count
+  components/ThemeToggle.tsx  Three-option radiogroup
   components/TrashZone.tsx    The drop strip
   components/ErrorBoundary.tsx  Recoverable screen instead of a blank page
   infra/                      localStorage adapter + REST mock
@@ -142,8 +155,8 @@ openspec/                     Capability specs and the archived change history
 ## Testing
 
 ```bash
-bun run test        # 112 unit and interaction tests (jsdom)
-bun run test:e2e    # 48 browser scenarios: 24 × Chromium and Firefox
+bun run test        # 127 unit and interaction tests (jsdom)
+bun run test:e2e    # 60 browser scenarios: 30 × Chromium and Firefox
 bun run lint        # ESLint: react-hooks, react-refresh, jsx-a11y
 bun run build       # tsc -b (strict) + vite build
 ```
@@ -159,6 +172,8 @@ The browser suite needs its engines once per machine: `bun run test:e2e:install`
 | `hooks/useDrag.test.tsx` | 7 | Deltas, movement outside the element, `Esc`, `pointercancel`, sequential sessions, unmount teardown |
 | `index.css.test.ts` | 7 | PostCSS AST guard: no Sass-only nesting, a background per colour, strip height defined once, `sr-only`, crash screen |
 | `components/board.regressions.test.tsx` | 6 | Escape-then-edit, palette radio group, stacking no-op, focus after delete, viewport clamp |
+| `app/theme.test.ts` | 11 | Preference parsing with fallback, resolution against both schemes, storage that throws, root attributes |
+| `components/theme.test.tsx` | 4 | System default, choice applied and stored, stored choice restored, corrupt value falls back |
 | `app/boardGeometry.test.ts` · `infra/mockApi.test.ts` · `components/ErrorBoundary.test.tsx` | 4 · 3 · 2 | Measured geometry, async mock, crash screen |
 
 The component suite runs through the **React Compiler**, exactly like the production build, so a
@@ -166,8 +181,9 @@ compiler bailout cannot hide until deploy.
 
 `e2e/` builds the app, serves `vite preview` and drives real Chromium and Firefox at 1024×768 with
 genuine pointer and keyboard input — the parts jsdom cannot see: layout, pointer capture, CSS and
-cross-engine behaviour. Selectors are `data-testid`-based and interaction state is read from `data-*`
-attributes, so renaming a style class cannot break the suite. It asserts concrete numbers, so a
+cross-engine behaviour. The theme spec emulates the operating system's scheme, so "system", "override"
+and "live change" are asserted against a real media query, not a stub. Selectors are `data-testid`-based
+and interaction state is read from `data-*` attributes, so renaming a style class cannot break the suite. It asserts concrete numbers, so a
 regression names the value that moved: create → `240×160` at `(120, 150)`, move → `+40/−30`, resize →
 `300×190` with the top-left anchored, keyboard → `64,64 → 80,72`.
 
@@ -188,6 +204,9 @@ regression names the value that moved: create → `240×160` at `(120, 150)`, mo
   instead — a drag re-renders one note, not the board.
 - **An error boundary wraps the app**, so a render throw (a blocked storage accessor, a bad payload)
   shows a recoverable screen instead of a blank page.
+- **The theme is resolved in JavaScript, not in CSS** (`data-theme` on the root plus a pre-paint
+  script). A media query cannot express a three-way preference, and duplicating the dark token block
+  for the system case would encode the precedence rule twice.
 - **Bun** as the toolchain, since the scaffold shipped `bun.lock`. The scripts are plain `vite`,
   `vitest`, `tsc` and `eslint`, so any package manager runs them.
 
