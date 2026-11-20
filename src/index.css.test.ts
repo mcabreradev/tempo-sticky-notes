@@ -94,4 +94,24 @@ describe('index.css', () => {
     expect(ruleFor('.crash')).toBeDefined()
     expect(ruleFor('.crash__reload')).toBeDefined()
   })
+
+  it('keeps the colour palette reachable on touch screens', () => {
+    // No hover means no `.note:hover`: the palette has to be always visible
+    // under a coarse pointer, or the only way to recolour disappears.
+    const shownWithoutHover: string[] = []
+    root.walkAtRules('media', (atRule) => {
+      if (!atRule.params.includes('hover: none')) {
+        return
+      }
+      atRule.walkRules((rule) => {
+        if (rule.selector === '.note__palette') {
+          const display = declaration(rule, 'display')?.value
+          if (display) {
+            shownWithoutHover.push(display)
+          }
+        }
+      })
+    })
+    expect(shownWithoutHover).toEqual(['flex'])
+  })
 })

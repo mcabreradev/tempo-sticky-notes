@@ -12,8 +12,8 @@ state library, no UI kit**. React DOM is the only runtime dependency.
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&amp;logoColor=white">
   <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&amp;logoColor=white">
   <img alt="Runtime dependencies: React only" src="https://img.shields.io/badge/runtime_deps-React_only-2f6f4f">
-  <img alt="112 unit tests" src="https://img.shields.io/badge/unit_tests-112-2f6f4f">
-  <img alt="48 browser scenarios" src="https://img.shields.io/badge/browser_scenarios-48-2f6f4f">
+  <img alt="141 unit tests" src="https://img.shields.io/badge/unit_tests-141-2f6f4f">
+  <img alt="93 browser scenarios" src="https://img.shields.io/badge/browser_scenarios-93-2f6f4f">
 </p>
 
 ![Drawing a note, writing in it, moving it, resizing it, recolouring it, deleting it and undoing](docs/demo.gif)
@@ -25,6 +25,9 @@ state library, no UI kit**. React DOM is the only runtime dependency.
 bun install
 bun run dev        # http://localhost:5173
 ```
+
+Bun ≥ 1.2 and Node ≥ 22 (`.nvmrc`) — the scripts are plain `vite`, `vitest`, `tsc` and `eslint`, so
+any package manager runs them.
 
 Drag on the cork board to make your first note. Everything else is discoverable from there.
 
@@ -156,8 +159,8 @@ openspec/                     Capability specs and the archived change history
 ## Testing
 
 ```bash
-bun run test        # 127 unit and interaction tests (jsdom)
-bun run test:e2e    # 60 browser scenarios: 30 × Chromium and Firefox
+bun run test        # 141 unit and interaction tests (jsdom)
+bun run test:e2e    # 93 browser scenarios: 31 × Chromium, Firefox and WebKit
 bun run lint        # ESLint: react-hooks, react-refresh, jsx-a11y
 bun run build       # tsc -b (strict) + vite build
 ```
@@ -171,26 +174,43 @@ The browser suite needs its engines once per machine: `bun run test:e2e:install`
 | `components/board.interactions.test.tsx` | 39 | Pointer and keyboard flows end to end |
 | `infra/persistence.test.ts` | 12 | Round-trip, schema and size validation, malformed JSON, throwing and blocked storage |
 | `hooks/useDrag.test.tsx` | 7 | Deltas, movement outside the element, `Esc`, `pointercancel`, sequential sessions, unmount teardown |
-| `index.css.test.ts` | 7 | PostCSS AST guard: no Sass-only nesting, a background per colour, strip height defined once, `sr-only`, crash screen |
+| `index.css.test.ts` | 8 | PostCSS AST guard: no Sass-only nesting, a background per colour, strip height defined once, `sr-only`, crash screen, palette on touch |
 | `components/board.regressions.test.tsx` | 6 | Escape-then-edit, palette radio group, stacking no-op, focus after delete, viewport clamp |
 | `app/theme.test.ts` | 11 | Preference parsing with fallback, resolution against both schemes, storage that throws, root attributes |
 | `components/theme.test.tsx` | 4 | System default, choice applied and stored, stored choice restored, corrupt value falls back |
+| `app/themeBoot.parity.test.ts` | 13 | The pre-paint script and `app/theme.ts` agree on every preference, scheme and a throwing storage |
 | `app/boardGeometry.test.ts` · `infra/mockApi.test.ts` · `components/ErrorBoundary.test.tsx` | 4 · 3 · 2 | Measured geometry, async mock, crash screen |
 
 The component suite runs through the **React Compiler**, exactly like the production build, so a
 compiler bailout cannot hide until deploy.
 
-`e2e/` builds the app, serves `vite preview` and drives real Chromium and Firefox at 1024×768 with
-genuine pointer and keyboard input — the parts jsdom cannot see: layout, pointer capture, CSS and
-cross-engine behaviour. The theme spec emulates the operating system's scheme, so "system", "override"
-and "live change" are asserted against a real media query, not a stub. Selectors are `data-testid`-based
-and interaction state is read from `data-*` attributes, so renaming a style class cannot break the suite. It asserts concrete numbers, so a
-regression names the value that moved: create → `240×160` at `(120, 150)`, move → `+40/−30`, resize →
-`300×190` with the top-left anchored, keyboard → `64,64 → 80,72`.
+`e2e/` builds the app, serves `vite preview` and drives real Chromium, Firefox and **WebKit** at
+1024×768 with genuine pointer and keyboard input — the parts jsdom cannot see: layout, pointer capture,
+CSS and cross-engine behaviour. WebKit is the engine that motivated the blocked-storage guard: Safari
+in private mode throws when the storage object is obtained. The theme spec emulates the operating
+system's scheme, so "system", "override" and "live change" are asserted against a real media query, not
+a stub, and a touch emulation asserts the palette is reachable without hover. Selectors are
+`data-testid`-based and interaction state is read from `data-*` attributes, so renaming a style class
+cannot break the suite. It asserts concrete numbers, so a regression names the value that moved:
+create → `240×160` at `(120, 150)`, move → `+40/−30`, resize → `300×190` with the top-left anchored,
+keyboard → `64,64 → 80,72`.
 
 The media in `docs/` is generated the same way, not hand-cropped: `bun run docs:shots` and
 `bun run docs:demo` drive the production build with Playwright and encode with ffmpeg, so the GIF in
 this README is the app as it ships (`scripts/doc-assets.mjs`).
+
+## Performance
+
+- **77.8 kB gzipped** (244 kB raw) including React, the compiler runtime and the stylesheet; React DOM
+  is still the only runtime dependency.
+- **A drag re-renders the note being dragged, not the board.** Measured on the production build: five
+  pointer moves over a three-note board produce 8 `Note` renders in total — all of the dragged note,
+  the other two never re-render. Before the context split the same gesture re-rendered every note on
+  every event (28 renders in a two-note run).
+- Reducer actions that change nothing (re-raising the top note, a move that lands on the same
+  rectangle) return the same state object, so they cost no render, no `localStorage` write and no
+  sync.
+- `pointermove` is **not** coalesced with `requestAnimationFrame`; see Decisions for why.
 
 ## Decisions
 
@@ -211,16 +231,37 @@ this README is the app as it ships (`scripts/doc-assets.mjs`).
   shows a recoverable screen instead of a blank page.
 - **The theme is resolved in JavaScript, not in CSS** (`data-theme` on the root plus a pre-paint
   script). A media query cannot express a three-way preference, and duplicating the dark token block
-  for the system case would encode the precedence rule twice.
+  for the system case would encode the precedence rule twice. The pre-paint snippet cannot import the
+  module (it has to run before the bundle), so the two are duplicated on purpose and held together by
+  a parity test that runs both against the same matrix.
+- **The palette is always visible on coarse pointers.** Show-on-hover is meaningless when there is no
+  hover, so `@media (hover: none)` keeps it open — otherwise recolouring would be unreachable on a
+  tablet, which is exactly where a sticky-note app gets used.
+- **The REST mirror is a whole-board `PUT`**, not a per-note CRUD. A real endpoint would diff on its
+  side; inventing per-note verbs here would mean an API nobody asked for and an ordering problem the
+  brief does not have.
 - **Bun** as the toolchain, since the scaffold shipped `bun.lock`. The scripts are plain `vite`,
   `vitest`, `tsc` and `eslint`, so any package manager runs them.
+
+## Specs and changes
+
+The rules the board obeys are written as capability specs in `openspec/specs/` — creation, content,
+manipulation, deletion, persistence and keyboard controls. Every piece of work that changed them is
+archived under `openspec/changes/archive/` with its proposal, design, task log and the deltas it
+applied, so the *why* of a rule is one directory away from the rule itself.
+
+The flow is driven by the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI:
+
+```bash
+openspec list                          # active changes
+openspec validate <change> --strict    # a change must be valid before code, and before archiving
+openspec archive <change>              # applies its deltas to openspec/specs/ and archives it
+```
 
 ## Context
 
 Built as a front-end take-home: React + TypeScript + Vite, three required features and five optional
-ones, no UI or drag-and-drop library. The rules the board obeys are written down as capability specs
-under `openspec/specs/`, and each change that shaped them is archived with its proposal, design and
-task record.
+ones, no UI or drag-and-drop library.
 
 ## License
 
