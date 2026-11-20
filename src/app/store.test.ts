@@ -79,7 +79,7 @@ describe('boardReducer', () => {
     expect(state.notes.n1.color).toBe('green')
   })
 
-  it('brings a note to the front monotonically', () => {
+  it('brings a note to the front monotonically, and no-ops when it is already there', () => {
     let state = boardReducer(initialBoardState, {
       type: 'create',
       note: baseNote(),
@@ -91,8 +91,36 @@ describe('boardReducer', () => {
     state = boardReducer(state, { type: 'bringToFront', id: 'n1' })
     expect(state.notes.n1.zIndex).toBe(3)
     expect(state.notes.n2.zIndex).toBe(2)
+
+    // Already on top: identical state, so nothing persists or syncs.
+    const same = boardReducer(state, { type: 'bringToFront', id: 'n1' })
+    expect(same).toBe(state)
+    expect(same.notes.n1.zIndex).toBe(3)
+    expect(same.zCounter).toBe(3)
+
+    // Raising it again after another note went on top does move it.
+    state = boardReducer(state, { type: 'bringToFront', id: 'n2' })
     state = boardReducer(state, { type: 'bringToFront', id: 'n1' })
-    expect(state.notes.n1.zIndex).toBe(4)
+    expect(state.notes.n1.zIndex).toBe(5)
+  })
+
+  it('ignores a geometry update that changes nothing', () => {
+    let state = boardReducer(initialBoardState, {
+      type: 'create',
+      note: baseNote(),
+    })
+    const same = boardReducer(state, {
+      type: 'updateGeometry',
+      id: 'n1',
+      rect: { x: 10, y: 10, width: 240, height: 160 },
+    })
+    expect(same).toBe(state)
+    state = boardReducer(state, {
+      type: 'updateGeometry',
+      id: 'n1',
+      rect: { x: 11, y: 10, width: 240, height: 160 },
+    })
+    expect(state.notes.n1.x).toBe(11)
   })
 
   it('deletes notes', () => {
@@ -154,5 +182,50 @@ describe('boardReducer', () => {
       rect: { x: 0, y: 0, width: 10, height: 10 },
     })
     expect(state).toBe(initialBoardState)
+  })
+
+  it('refuses to restore a note over a live one', () => {
+    let state = boardReducer(initialBoardState, {
+      type: 'create',
+      note: baseNote(),
+    })
+    const snapshot = state.notes.n1
+    state = boardReducer(state, { type: 'setText', id: 'n1', text: 'edited' })
+    const same = boardReducer(state, { type: 'restore', note: { ...snapshot, text: '' } })
+    expect(same).toBe(state)
+    expect(same.notes.n1.text).toBe('edited')
+  })
+
+  it('collapses duplicate ids when hydrating', () => {
+    const state = boardReducer(initialBoardState, {
+      type: 'hydrate',
+      notes: [
+        baseNote({ id: 'a', zIndex: 2, text: 'first' }),
+        baseNote({ id: 'a', zIndex: 7, text: 'last' }),
+      ],
+    })
+    expect(Object.keys(state.notes)).toHaveLength(1)
+    expect(state.notes.a?.text).toBe('last')
+    expect(state.zCounter).toBe(7)
+  })
+
+  it('clamps every note to new bounds in one action', () => {
+    let state = boardReducer(initialBoardState, {
+      type: 'create',
+      note: baseNote({ x: 800, y: 500 }),
+    })
+    state = boardReducer(state, { type: 'create', note: baseNote({ id: 'n2', x: 900 }) })
+    state = boardReducer(state, { type: 'clampAll', size: { width: 600, height: 400 } })
+    expect(state.notes.n1).toMatchObject({ x: 360, y: 240, width: 240, height: 160 })
+    expect(state.notes.n2).toMatchObject({ x: 360, y: 10, width: 240, height: 160 })
+
+    // Nothing left to clamp: same state, no persistence write.
+    const same = boardReducer(state, { type: 'clampAll', size: { width: 600, height: 400 } })
+    expect(same).toBe(state)
+  })
+
+  it('keeps the initial state immutable', () => {
+    expect(Object.isFrozen(initialBoardState)).toBe(true)
+    expect(Object.isFrozen(initialBoardState.notes)).toBe(true)
   })
 })

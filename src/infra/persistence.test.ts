@@ -116,4 +116,37 @@ describe('loadBoard / saveBoard', () => {
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
   })
+
+  it('rejects notes below the domain minimum size', () => {
+    const narrow = JSON.stringify({ version: 1, notes: [{ ...note(), width: 0 }] })
+    expect(parseBoard(narrow)).toBeNull()
+    const short = JSON.stringify({ version: 1, notes: [{ ...note(), height: 59 }] })
+    expect(parseBoard(short)).toBeNull()
+  })
+
+  it('degrades instead of throwing when the localStorage accessor itself is blocked', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('The operation is insecure.', 'SecurityError')
+      },
+    })
+    try {
+      // This is the path that used to take the whole tree down: the accessor
+      // throws outside any try block, during render.
+      expect(() => loadBoard()).not.toThrow()
+      expect(loadBoard()).toBeNull()
+      expect(() => saveBoard(stateWith([note()]))).not.toThrow()
+      expect(warn).toHaveBeenCalled()
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(window, 'localStorage', descriptor)
+      } else {
+        delete (window as { localStorage?: Storage }).localStorage
+      }
+      warn.mockRestore()
+    }
+  })
 })

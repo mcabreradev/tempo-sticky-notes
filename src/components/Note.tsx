@@ -4,19 +4,52 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from 'react'
 import { NOTE_COLORS } from '../domain/note'
-import type { Note as NoteModel } from '../domain/note'
-import { useNotes } from '../app/notesContext'
-
-export interface NoteDragVisual {
-  overTrash: boolean
-}
+import type { NoteColor, Note as NoteModel } from '../domain/note'
+import { useBoardDispatch } from '../app/notesContext'
+import type { NoteDragVisual } from '../hooks/useNoteGestures'
 
 const KEYBOARD_STEP_PX = 8
+
+// The domain owns the palette; the stylesheet owns the class names. These maps
+// are the seam between them: renaming a colour in the domain cannot silently
+// orphan a rule, and the stylesheet test asserts every entry here has styling.
+const COLOR_CLASS: Record<NoteColor, string> = {
+  yellow: 'note--yellow',
+  green: 'note--green',
+  blue: 'note--blue',
+  pink: 'note--pink',
+  purple: 'note--purple',
+  orange: 'note--orange',
+}
+
+const DOT_CLASS: Record<NoteColor, string> = {
+  yellow: 'note__dot--yellow',
+  green: 'note__dot--green',
+  blue: 'note__dot--blue',
+  pink: 'note__dot--pink',
+  purple: 'note__dot--purple',
+  orange: 'note__dot--orange',
+}
+
+const KEY_STEPS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+}
+
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex --
+   The note is a composite widget: it is focusable as a whole (arrows move it,
+   Enter/F2 edit, Delete removes) while its children are the controls it owns.
+   role="button" would nest interactive content and flatten those controls, and
+   a pure structure role cannot describe the keyboard model, so the group is
+   focusable on purpose. */
 
 interface NoteProps {
   note: NoteModel
   dragVisual: NoteDragVisual | null
-  autoFocus: boolean
+  focusOnMount: boolean
+  onFocusHandled: () => void
   onStartMove: (note: NoteModel, event: ReactPointerEvent<HTMLElement>) => void
   onStartResize: (note: NoteModel, event: ReactPointerEvent<HTMLElement>) => void
   onNudge: (note: NoteModel, deltaX: number, deltaY: number) => void
@@ -27,28 +60,45 @@ interface NoteProps {
 export const Note = memo(function Note({
   note,
   dragVisual,
-  autoFocus,
+  focusOnMount,
+  onFocusHandled,
   onStartMove,
   onStartResize,
   onNudge,
   onNudgeResize,
   onDelete,
 }: NoteProps) {
-  const { dispatch } = useNotes()
+  // Only the dispatch context: its value never changes, so a state update
+  // elsewhere on the board does not re-render this note.
+  const dispatch = useBoardDispatch()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const rootRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLTextAreaElement>(null)
+  const dotRefs = useRef<Array<HTMLButtonElement | null>>([])
   // Escaping the editor moves focus back to the note, which fires blur; that
-  // blur must not save the draft the user just discarded.
+  // blur must not save the draft the user just discarded. Reset on every edit
+  // so a blur that never arrives cannot disable saving for good.
   const skipCommitRef = useRef(false)
 
   useEffect(() => {
-    if (autoFocus) {
+    if (focusOnMount) {
       rootRef.current?.focus()
+      onFocusHandled()
     }
-  }, [autoFocus])
+  }, [focusOnMount, onFocusHandled])
+
+  // Focus the editor when it opens. An effect instead of the autoFocus
+  // attribute: the focus is a consequence of the user's action (Enter, F2,
+  // double-click), not of the element happening to mount.
+  useEffect(() => {
+    if (editing) {
+      editorRef.current?.focus()
+    }
+  }, [editing])
 
   const beginEdit = () => {
+    skipCommitRef.current = false
     setDraft(note.text)
     setEditing(true)
   }
@@ -93,13 +143,7 @@ export const Note = memo(function Note({
       onDelete(note)
       return
     }
-    const steps: Record<string, [number, number]> = {
-      ArrowLeft: [-1, 0],
-      ArrowRight: [1, 0],
-      ArrowUp: [0, -1],
-      ArrowDown: [0, 1],
-    }
-    const step = steps[event.key]
+    const step = KEY_STEPS[event.key]
     if (!step) {
       return
     }
@@ -112,9 +156,31 @@ export const Note = memo(function Note({
     }
   }
 
+  // Radiogroup semantics: one tab stop, arrows move the selection.
+  const handleSwatchKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    const forwards = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+    const backwards = event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+    if (!forwards && !backwards) {
+      return
+    }
+    event.preventDefault()
+    event.stopPropagation()
+    const nextIndex =
+      (index + (forwards ? 1 : -1) + NOTE_COLORS.length) % NOTE_COLORS.length
+    const nextColor = NOTE_COLORS[nextIndex]
+    if (!nextColor) {
+      return
+    }
+    dispatch({ type: 'setColor', id: note.id, color: nextColor })
+    dotRefs.current[nextIndex]?.focus()
+  }
+
   const className = [
     'note',
-    `note--${note.color}`,
+    COLOR_CLASS[note.color],
     dragVisual ? 'note--dragging' : '',
     dragVisual?.overTrash ? 'note--danger' : '',
   ]
@@ -134,12 +200,23 @@ export const Note = memo(function Note({
       }}
       role="group"
       tabIndex={0}
-      aria-label={note.text.trim() === '' ? 'Empty note' : `Note: ${note.text.slice(0, 60)}`}
       data-testid="note"
       data-color={note.color}
       data-dragging={dragVisual ? 'true' : undefined}
       data-over-trash={dragVisual?.overTrash ? 'true' : undefined}
-      onPointerDown={() => dispatch({ type: 'bringToFront', id: note.id })}
+      aria-roledescription="sticky note"
+      aria-keyshortcuts="Enter F2 Delete Backspace ArrowUp ArrowDown ArrowLeft ArrowRight"
+      aria-label={
+        note.text.trim() === '' ? 'Empty note' : `Note: ${note.text.slice(0, 60)}`
+      }
+      // Capture phase: raising happens before any child can stop propagation,
+      // so recolouring or resizing raises the note just like pressing its body.
+      onPointerDownCapture={(event) => {
+        if (event.button !== 0) {
+          return
+        }
+        dispatch({ type: 'bringToFront', id: note.id })
+      }}
       onKeyDown={handleKeyDown}
     >
       <div
@@ -149,18 +226,23 @@ export const Note = memo(function Note({
       >
         <span className="note__grip" aria-hidden />
         <div className="note__palette" role="radiogroup" aria-label="Note color">
-          {NOTE_COLORS.map((color) => (
+          {NOTE_COLORS.map((color, index) => (
             <button
               key={color}
+              ref={(element) => {
+                dotRefs.current[index] = element
+              }}
               type="button"
-              className={`note__dot note__dot--${color}${
+              className={`note__dot ${DOT_CLASS[color]}${
                 color === note.color ? ' is-active' : ''
               }`}
               role="radio"
               aria-checked={color === note.color}
               aria-label={`Set note color ${color}`}
               data-testid={`note-color-${color}`}
+              tabIndex={color === note.color ? 0 : -1}
               onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => handleSwatchKeyDown(event, index)}
               onClick={() => dispatch({ type: 'setColor', id: note.id, color })}
             />
           ))}
@@ -168,6 +250,7 @@ export const Note = memo(function Note({
       </div>
       {editing ? (
         <textarea
+          ref={editorRef}
           className="note__editor"
           data-testid="note-editor"
           value={draft}
@@ -177,7 +260,6 @@ export const Note = memo(function Note({
           onPointerDown={(event) => event.stopPropagation()}
           placeholder="Write something…"
           aria-label="Note text"
-          autoFocus
         />
       ) : (
         <div

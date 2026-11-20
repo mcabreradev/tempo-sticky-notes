@@ -31,6 +31,9 @@ export function useDrag(): {
   ) => void
 } {
   const activeRef = useRef<ActiveDrag | null>(null)
+  // Teardown of the in-flight session, so unmounting mid-gesture cannot leave
+  // window listeners (or a pointer capture) behind.
+  const tearDownRef = useRef<(() => void) | null>(null)
 
   const startDrag = useCallback(
     (event: ReactPointerEvent<HTMLElement>, onDragStart: DragStarter) => {
@@ -56,7 +59,9 @@ export function useDrag(): {
           target.releasePointerCapture(pointerId)
         }
         activeRef.current = null
+        tearDownRef.current = null
       }
+      tearDownRef.current = cleanup
 
       const handleMove = (move: PointerEvent) => {
         if (move.pointerId !== pointerId) {
@@ -100,11 +105,14 @@ export function useDrag(): {
     [],
   )
 
-  // Cancel gracefully if the component unmounts mid-drag (e.g., the dragged
-  // note gets deleted externally).
+  // Unmounting mid-drag: the listeners and the capture must go. onCancel is
+  // deliberately not called — the component that would have restored its
+  // geometry no longer exists, and calling back into it would set state on a
+  // tree that is already gone.
   useEffect(() => {
     return () => {
-      activeRef.current?.session.onCancel()
+      tearDownRef.current?.()
+      tearDownRef.current = null
       activeRef.current = null
     }
   }, [])

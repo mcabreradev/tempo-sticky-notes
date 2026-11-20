@@ -7,7 +7,10 @@ Covers the optional features I (entering/editing note text) and IV (different no
 
 ### Requirement: Edit note text
 
-Double-clicking a note's body SHALL open an inline text editor with the current text preselected. The edited text SHALL be saved when the editor loses focus, when the user presses Cmd/Ctrl+Enter, and SHALL be discarded when the user presses Escape.
+Double-clicking a note's body SHALL open an inline text editor with the current text preselected. The
+edited text SHALL be saved when the editor loses focus, when the user presses Cmd/Ctrl+Enter, and
+SHALL be discarded when the user presses Escape. Editing SHALL remain fully functional after a
+cancelled edit: a discarded draft SHALL never disable a later save.
 
 #### Scenario: Double-click opens editing with existing text
 - **WHEN** the user double-clicks a note containing "Buy milk"
@@ -24,6 +27,10 @@ Double-clicking a note's body SHALL open an inline text editor with the current 
 #### Scenario: Empty text stays valid
 - **WHEN** the user clears all text and saves
 - **THEN** the note renders an empty state placeholder instead of failing
+
+#### Scenario: A cancelled edit does not poison the next one
+- **WHEN** the user cancels one edit with Escape, then edits the same note again and saves
+- **THEN** the second edit is saved normally
 
 ### Requirement: Choose note color
 
