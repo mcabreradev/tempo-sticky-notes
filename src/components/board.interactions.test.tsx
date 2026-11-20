@@ -295,6 +295,50 @@ describe('trash zone deletion', () => {
   })
 })
 
+describe('undo after deletion', () => {
+  it('offers an undo that restores the deleted note exactly', () => {
+    renderBoard()
+    const note = createViaButton()
+    // Give it some content so restoration is meaningful.
+    const body = note.querySelector('.note__body') as HTMLElement
+    fireEvent.doubleClick(body)
+    const editor = note.querySelector('.note__editor') as HTMLTextAreaElement
+    fireEvent.change(editor, { target: { value: 'Delete me later' } })
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true })
+    fireEvent.click(screen.getByRole('radio', { name: 'Set note color pink' }))
+
+    const bodyEl = note.querySelector('.note__body') as HTMLElement
+    fireEvent(bodyEl, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 400, clientY: 600 }))
+    fireEvent(window, pointer('pointerup', { clientX: 400, clientY: 600 }))
+    expect(noteEls()).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: /undo/i }))
+
+    const restored = onlyNote()
+    expect(restored.textContent).toContain('Delete me later')
+    expect(restored.className).toContain('note--pink')
+    expect(restored.style.left).toBe('64px')
+    expect(restored.style.top).toBe('64px')
+  })
+
+  it('hides the undo offer after the timeout', () => {
+    renderBoard()
+    const note = createViaButton()
+    const body = note.querySelector('.note__body') as HTMLElement
+    fireEvent(body, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 400, clientY: 600 }))
+    fireEvent(window, pointer('pointerup', { clientX: 400, clientY: 600 }))
+    expect(screen.queryByRole('button', { name: /undo/i })).not.toBeNull()
+
+    act(() => {
+      vi.advanceTimersByTime(8000)
+    })
+    expect(screen.queryByRole('button', { name: /undo/i })).toBeNull()
+    expect(noteEls()).toHaveLength(0)
+  })
+})
+
 describe('stacking order', () => {
   it('brings a pressed note to the front', () => {
     renderBoard()

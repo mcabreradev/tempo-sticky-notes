@@ -374,6 +374,44 @@ body {
   transform: scale(1.35);
 }
 
+/* --- Undo toast --- */
+
+.undo-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(28, 20, 12, 0.92);
+  color: #f6efe4;
+  font-family: var(--ui);
+  font-size: 13px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.undo-toast__action {
+  font: inherit;
+  font-weight: 650;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ffd964;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.undo-toast__action:focus-visible {
+  outline: 2px solid #ffd964;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sync--syncing .sync__dot {
     animation: none;

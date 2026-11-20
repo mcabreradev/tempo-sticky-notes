@@ -104,6 +104,36 @@ describe('boardReducer', () => {
     expect(state.notes.n1).toBeUndefined()
   })
 
+  it('restores a deleted note with its original geometry and stacking', () => {
+    let state = boardReducer(initialBoardState, {
+      type: 'create',
+      note: baseNote(),
+    })
+    state = boardReducer(state, {
+      type: 'create',
+      note: baseNote({ id: 'n2' }),
+    })
+    const snapshot = state.notes.n1
+    state = boardReducer(state, { type: 'delete', id: 'n1' })
+    state = boardReducer(state, { type: 'restore', note: snapshot })
+    expect(state.notes.n1).toEqual(snapshot)
+    expect(state.notes.n1.zIndex).toBe(1)
+    expect(state.zCounter).toBe(2)
+  })
+
+  it('keeps the z counter monotonic when restoring a stale note', () => {
+    let state = boardReducer(initialBoardState, {
+      type: 'create',
+      note: baseNote(),
+    })
+    const snapshot = state.notes.n1
+    state = boardReducer(state, { type: 'delete', id: 'n1' })
+    state = boardReducer(state, { type: 'create', note: baseNote({ id: 'n2' }) })
+    state = boardReducer(state, { type: 'restore', note: snapshot })
+    expect(state.zCounter).toBe(2)
+    expect(boardReducer(state, { type: 'create', note: baseNote({ id: 'n3' }) }).zCounter).toBe(3)
+  })
+
   it('hydrates from a restored note list keeping stacking order', () => {
     const notes = [
       baseNote({ id: 'a', zIndex: 2 }),

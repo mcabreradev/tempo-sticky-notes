@@ -23,6 +23,7 @@ import { TrashZone, TRASH_ZONE_HEIGHT } from './TrashZone'
 
 // Below this travel the gesture is a click, not a draw.
 const CLICK_SLOP_PX = 4
+const UNDO_WINDOW_MS = 6000
 
 interface NoteDragInfo {
   id: NoteId
@@ -48,7 +49,17 @@ export function Board() {
   const trashRef = useRef<HTMLDivElement>(null)
   const [createPreview, setCreatePreview] = useState<Rect | null>(null)
   const [noteDrag, setNoteDrag] = useState<NoteDragInfo | null>(null)
+  const [removedNote, setRemovedNote] = useState<NoteModel | null>(null)
   const { startDrag } = useDrag()
+
+  // The undo offer is time-boxed: after a moment the deletion is final.
+  useEffect(() => {
+    if (!removedNote) {
+      return
+    }
+    const timer = setTimeout(() => setRemovedNote(null), UNDO_WINDOW_MS)
+    return () => clearTimeout(timer)
+  }, [removedNote])
 
   // Board geometry is measured once per gesture: the viewport cannot change
   // mid-drag in a trustworthy way, and measuring per frame would thrash layout.
@@ -170,6 +181,7 @@ export function Board() {
             toBoardPoint(origin, clientEndPoint),
           )
           if (overTrash) {
+            setRemovedNote(note)
             dispatch({ type: 'delete', id: note.id })
             return
           }
@@ -280,6 +292,21 @@ export function Board() {
             }}
             aria-hidden
           />
+        )}
+        {removedNote && (
+          <div className="undo-toast" role="status" aria-live="polite">
+            <span>Note deleted</span>
+            <button
+              type="button"
+              className="undo-toast__action"
+              onClick={() => {
+                dispatch({ type: 'restore', note: removedNote })
+                setRemovedNote(null)
+              }}
+            >
+              Undo
+            </button>
+          </div>
         )}
         <TrashZone
           ref={trashRef}
