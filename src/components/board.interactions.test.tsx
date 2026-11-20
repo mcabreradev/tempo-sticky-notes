@@ -339,6 +339,33 @@ describe('undo after deletion', () => {
   })
 })
 
+describe('trash zone hover feedback', () => {
+  it('lets the dragged note visually enter the trash strip', () => {
+    renderBoard()
+    const note = createViaButton()
+    const body = note.querySelector('.note__body') as HTMLElement
+    // Board usable height is 568 (640 minus the 72px strip); a 160px note is
+    // capped at top=408 there. While dragging it may travel into the strip.
+    fireEvent(body, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 74, clientY: 600 }))
+    const topWhileDragging = Number.parseInt(note.style.top)
+    expect(topWhileDragging).toBeGreaterThan(408)
+    expect(note.classList).toContain('note--danger')
+    fireEvent.keyDown(window, { key: 'Escape' })
+  })
+
+  it('snaps the note back above the strip when released outside the trash', () => {
+    renderBoard()
+    const note = createViaButton()
+    const body = note.querySelector('.note__body') as HTMLElement
+    fireEvent(body, pointer('pointerdown', { clientX: 74, clientY: 74 }))
+    fireEvent(window, pointer('pointermove', { clientX: 74, clientY: 550 }))
+    fireEvent(window, pointer('pointerup', { clientX: 74, clientY: 550 }))
+    expect(note.style.top).toBe('408px')
+    expect(noteEls()).toHaveLength(1)
+  })
+})
+
 describe('stacking order', () => {
   it('brings a pressed note to the front', () => {
     renderBoard()

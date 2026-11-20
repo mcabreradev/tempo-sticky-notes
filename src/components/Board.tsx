@@ -70,6 +70,9 @@ export function Board() {
         width: rect.width,
         height: Math.max(0, rect.height - TRASH_ZONE_HEIGHT),
       },
+      // Moves may travel across the whole board, trash strip included, so the
+      // dragged note can visually reach the bin; drops snap back to `size`.
+      fullSize: { width: rect.width, height: rect.height },
       origin: { x: rect.left, y: rect.top } as Point,
     }
   }
@@ -149,7 +152,7 @@ export function Board() {
     event: ReactPointerEvent<HTMLElement>,
   ) => {
     startDrag(event, () => {
-      const { size, origin } = boardGeometry()
+      const { size, fullSize, origin } = boardGeometry()
       const trash = trashRectOnBoard(origin)
       const from: Rect = {
         x: note.x,
@@ -163,7 +166,7 @@ export function Board() {
         onMove: (deltaX, deltaY, clientMovePoint) => {
           const rect = clampRectToBounds(
             { x: from.x + deltaX, y: from.y + deltaY, width: from.width, height: from.height },
-            size,
+            fullSize,
           )
           latestRect = rect
           dispatch({ type: 'updateGeometry', id: note.id, rect })
@@ -186,7 +189,11 @@ export function Board() {
             return
           }
           if (latestRect) {
-            dispatch({ type: 'updateGeometry', id: note.id, rect: latestRect })
+            dispatch({
+              type: 'updateGeometry',
+              id: note.id,
+              rect: clampRectToBounds(latestRect, size),
+            })
           }
         },
         onCancel: () => {
