@@ -30,23 +30,24 @@
   --ui: system-ui, 'Segoe UI', Roboto, sans-serif;
   --hand: 'Segoe Print', 'Bradley Hand', 'Chilanka', 'Comic Sans MS', cursive;
 
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --cork-1: #57402a;
-    --cork-2: #49341f;
-    --cork-3: #3d2c1a;
-    --chrome: rgba(34, 26, 18, 0.92);
-    --chrome-border: rgba(0, 0, 0, 0.5);
-    --chrome-text: #e8dcc8;
-    --chrome-muted: #a89377;
-    --note-ink: #3a2c12;
-    --trash-faint: rgba(232, 220, 200, 0.5);
-    --trash-active: rgba(0, 0, 0, 0.22);
-    --trash-danger: rgba(160, 40, 30, 0.9);
-  }
+/* The resolved theme, not the preference: app/theme.ts writes this attribute
+   and the pre-paint script in index.html sets it before React boots. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --cork-1: #57402a;
+  --cork-2: #49341f;
+  --cork-3: #3d2c1a;
+  --chrome: rgba(34, 26, 18, 0.92);
+  --chrome-border: rgba(0, 0, 0, 0.5);
+  --chrome-text: #e8dcc8;
+  --chrome-muted: #a89377;
+  --note-ink: #3a2c12;
+  --trash-faint: rgba(232, 220, 200, 0.5);
+  --trash-active: rgba(0, 0, 0, 0.22);
+  --trash-danger: rgba(160, 40, 30, 0.9);
 }
 
 * {
@@ -126,6 +127,44 @@ body {
     transform: translateY(1px);
     box-shadow: none;
   }
+}
+
+/* Three-state theme control: radiogroup semantics come from the buttons. */
+.theme-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: rgba(120, 84, 48, 0.1);
+  border: 1px solid var(--chrome-border);
+}
+
+.theme-toggle__option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--chrome-muted);
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.theme-toggle__option.is-active {
+  background: var(--note-yellow);
+  color: var(--note-ink);
+  box-shadow: 0 1px 2px rgba(60, 40, 15, 0.18);
+}
+
+.theme-toggle__option:focus-visible {
+  outline: 2px solid #2f6fd0;
+  outline-offset: 2px;
 }
 
 .sync {

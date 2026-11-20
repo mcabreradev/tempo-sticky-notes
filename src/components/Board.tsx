@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { measureBoard } from '../app/boardGeometry'
 import { useBoardDispatch, useBoardState, useSync } from '../app/notesContext'
 import { useNoteGestures } from '../hooks/useNoteGestures'
+import { useTheme } from '../app/useTheme'
 import {
   clamp,
   clampRectToBounds,
@@ -35,6 +36,7 @@ export function Board() {
   const state = useBoardState()
   const dispatch = useBoardDispatch()
   const { status: syncStatus, retry: retrySync } = useSync()
+  const { preference: themePreference, selectTheme } = useTheme()
   const boardRef = useRef<HTMLDivElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
   const [removedNote, setRemovedNote] = useState<NoteModel | null>(null)
@@ -169,8 +171,10 @@ export function Board() {
       <Toolbar
         noteCount={notes.length}
         syncStatus={syncStatus}
+        themePreference={themePreference}
         onNewNote={addNoteFromToolbar}
         onRetrySync={retrySync}
+        onSelectTheme={selectTheme}
       />
       <div
         className="board"

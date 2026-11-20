@@ -5,6 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sticky Notes</title>
+    <script>
+      // Pre-paint theme: without this the first frame uses the light palette
+      // even when the user chose dark. Mirrors app/theme.ts; see its tests.
+      (() => {
+        const KEY = 'sticky-notes-theme-v1'
+        const root = document.documentElement
+        let preference = 'system'
+        try {
+          const stored = localStorage.getItem(KEY)
+          if (stored === 'light' || stored === 'dark' || stored === 'system') {
+            preference = stored
+          }
+        } catch {
+          preference = 'system'
+        }
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        root.dataset.theme =
+          preference === 'system' ? (systemDark ? 'dark' : 'light') : preference
+        root.dataset.themePreference = preference
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

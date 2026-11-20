@@ -31,3 +31,18 @@ if (typeof Element !== 'undefined') {
     Element.prototype.hasPointerCapture = () => true
   }
 }
+
+// jsdom ships no matchMedia; the theme hook only needs `matches` and listeners.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string): MediaQueryList =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList
+}
