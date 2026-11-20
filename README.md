@@ -115,7 +115,8 @@ src/
   components/Toolbar.tsx
   infra/persistence.ts   localStorage adapter + schema validation
   infra/mockApi.ts       Asynchronous REST mock
-openspec/                OpenSpec planning artifacts for the change `build-sticky-notes-board`
+openspec/                OpenSpec planning artifacts: capability specs in `specs/` and the
+                         completed, archived change `build-sticky-notes-board`
 ```
 
 ## Tests and verification
