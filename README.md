@@ -80,10 +80,11 @@ screen. `src/hooks/useDrag.ts` opens a pointer session on a primary `pointerdown
 `setPointerCapture`, listens on `window` for `pointermove` / `pointerup` / `pointercancel`, cancels on
 `Escape`, and tears every listener down if its host unmounts mid-gesture. The caller takes a geometry
 snapshot at `pointerdown` and keeps it in the session closure, so cancelling restores exact values
-instead of recomputed ones; create, move and resize are three session factories over one engine.
-Board geometry is measured once per gesture — never per frame — and every coordinate is converted
-into board space, which is why positions survive scrolling, window offsets and the toolbar above the
-board. Keyboard actions call the same clamping helpers, so the two input paths cannot drift apart.
+instead of recomputed ones; create, move and resize are three session factories over one engine, kept
+in `src/hooks/useNoteGestures.ts` so `Board` composes instead of doing pointer arithmetic. Board
+geometry is measured once per gesture — never per frame — and every coordinate is converted into
+board space, which is why positions survive scrolling, window offsets and the toolbar above the board.
+Keyboard actions call the same clamping helpers, so the two input paths cannot drift apart.
 
 **Persistence has two tiers because it has two jobs.** `src/infra/persistence.ts` is authoritative and
 synchronous: a versioned payload (`{ version: 1, notes: [...] }`), a hand-written validator for every
@@ -109,7 +110,7 @@ is composed; no board code changes.
 | Layer | Lives in | Rule it keeps | Covered by |
 |---|---|---|---|
 | Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 32 unit tests |
-| Geometry and input | `app/boardGeometry.ts`, `hooks/useDrag.ts`, `components/Board.tsx` | Measured once per gesture; one gesture engine | 4 + 7 unit tests, 45 interaction tests |
+| Geometry and input | `app/boardGeometry.ts`, `hooks/useDrag.ts`, `hooks/useNoteGestures.ts`, `components/Board.tsx` | Measured once per gesture; one gesture engine, three sessions | 4 + 7 unit tests, 45 interaction tests |
 | Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 15 unit tests |
 | View | `components/`, `index.css` | Renders state, reports intent; no note data lives in the DOM | 7 stylesheet + 2 boundary tests |
 
@@ -123,7 +124,8 @@ src/
   app/NotesProvider.tsx     Hydration, debounced persistence, serialised sync, retry
   app/boardGeometry.ts      Measures the board and the trash strip from the DOM
   hooks/useDrag.ts          Pointer-capture drag engine (create, move, resize, cancel)
-  components/Board.tsx      Board, gesture sessions, keyboard nudging, undo
+  hooks/useNoteGestures.ts  The three board gestures as session factories, plus previews
+  components/Board.tsx      Composition: store, undo offer, focus, keyboard nudging, layout
   components/Note.tsx       Note rendering, text editing, colour palette, keyboard map
   components/ErrorBoundary.tsx  Recoverable screen instead of a blank page
   components/TrashZone.tsx  The drop strip
@@ -249,6 +251,9 @@ The brief left these open; each one is a deliberate choice, not an accident.
   region, and the undo window pauses while the offer is hovered or focused (WCAG 2.2.1).
 - **An error boundary wraps the app**, so a render throw shows a recoverable screen with a Reload
   action instead of leaving a blank page.
+- **The unit suite runs through the React Compiler**, like the production build: the compiler is in
+  `vitest.config.ts` as well, so a bailout or a memoisation difference shows up in `bun run test`
+  instead of only in the shipped bundle.
 
 ## License
 
