@@ -159,6 +159,24 @@ body {
   border-left: 1px solid var(--chrome-border);
 }
 
+.sync__retry {
+  font: inherit;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--chrome-border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sync__retry:focus-visible {
+  outline: 2px solid #2f6fd0;
+  outline-offset: 2px;
+}
+
 @keyframes sync-pulse {
   50% {
     opacity: 0.35;

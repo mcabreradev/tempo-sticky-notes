@@ -506,10 +506,40 @@ describe('async sync through the mock REST API', () => {
     renderBoard(api)
     createViaButton()
     await waitFor(() => {
-      expect(screen.getByText('Sync failed (mock API)')).toBeTruthy()
+      expect(screen.getByText('Sync failed')).toBeTruthy()
     }, { timeout: 2000 })
     // The board stays usable after a failed sync.
     expect(noteEls()).toHaveLength(1)
+  })
+
+  it('settles back to the idle state a moment after a successful sync', async () => {
+    vi.useRealTimers()
+    const api = new MockRestNotesApi({ minDelayMs: 5, maxDelayMs: 5 })
+    renderBoard(api)
+    createViaButton()
+    await waitFor(() => {
+      expect(screen.getByText('Synced')).toBeTruthy()
+    }, { timeout: 2000 })
+    await waitFor(() => {
+      expect(screen.getByText('Saved locally')).toBeTruthy()
+    }, { timeout: 3000 })
+  })
+
+  it('offers a manual retry after a failed sync', async () => {
+    vi.useRealTimers()
+    const api = new MockRestNotesApi({ minDelayMs: 5, maxDelayMs: 5 })
+    api.failNext()
+    renderBoard(api)
+    createViaButton()
+    await waitFor(() => {
+      expect(screen.getByText('Sync failed')).toBeTruthy()
+    }, { timeout: 2000 })
+    const callsBefore = api.callCount
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+    await waitFor(() => {
+      expect(screen.getByText('Synced')).toBeTruthy()
+    }, { timeout: 3000 })
+    expect(api.callCount).toBeGreaterThan(callsBefore)
   })
 
   it('serializes overlapping saves instead of racing them', async () => {

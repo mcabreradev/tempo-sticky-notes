@@ -17,6 +17,7 @@ import type { NotesApi } from '../infra/mockApi'
 
 const PERSIST_DEBOUNCE_MS = 150
 const SYNC_DEBOUNCE_MS = 400
+const SYNCED_TO_IDLE_MS = 1500
 
 // Sync is serialized (one in-flight save at a time) and always sends the
 // latest snapshot: rapid edits coalesce instead of racing each other.
@@ -47,6 +48,7 @@ export function NotesProvider({
   const inFlightRef = useRef(false)
   const pendingRef = useRef(false)
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const runSyncRef = useRef<() => void>(() => {})
 
   useEffect(() => {
@@ -63,12 +65,22 @@ export function NotesProvider({
       pendingRef.current = true
       return
     }
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current)
+      idleTimerRef.current = null
+    }
     inFlightRef.current = true
     setSyncStatus('syncing')
     const snapshot = Object.values(stateRef.current.notes)
     restApi
       .saveAll(snapshot)
-      .then(() => setSyncStatus('synced'))
+      .then(() => {
+        setSyncStatus('synced')
+        idleTimerRef.current = setTimeout(() => {
+          setSyncStatus('idle')
+          idleTimerRef.current = null
+        }, SYNCED_TO_IDLE_MS)
+      })
       .catch(() => setSyncStatus('error'))
       .finally(() => {
         inFlightRef.current = false
@@ -99,12 +111,19 @@ export function NotesProvider({
       if (syncTimerRef.current) {
         clearTimeout(syncTimerRef.current)
       }
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current)
+      }
     }
   }, [])
 
+  const retrySync = useCallback(() => {
+    runSyncRef.current()
+  }, [])
+
   const value = useMemo(
-    () => ({ state, dispatch, syncStatus }),
-    [state, dispatch, syncStatus],
+    () => ({ state, dispatch, syncStatus, retrySync }),
+    [state, dispatch, syncStatus, retrySync],
   )
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>

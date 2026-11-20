@@ -44,7 +44,7 @@ function makeNote(rect: Rect): NoteModel {
 }
 
 export function Board() {
-  const { state, dispatch, syncStatus } = useNotes()
+  const { state, dispatch, syncStatus, retrySync } = useNotes()
   const boardRef = useRef<HTMLDivElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
   const [createPreview, setCreatePreview] = useState<Rect | null>(null)
@@ -273,6 +273,7 @@ export function Board() {
         noteCount={notes.length}
         syncStatus={syncStatus}
         onNewNote={addNoteFromToolbar}
+        onRetrySync={retrySync}
       />
       <div
         className="board"
