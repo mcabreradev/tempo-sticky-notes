@@ -299,7 +299,9 @@ body {
 .note__body {
   flex: 1;
   padding: 7px 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   white-space: pre-wrap;
   word-break: break-word;
   cursor: grab;

@@ -43,6 +43,11 @@ export const DEFAULT_NOTE_WIDTH = 240
 export const DEFAULT_NOTE_HEIGHT = 160
 
 export function clamp(value: number, min: number, max: number): number {
+  // A board can be smaller than the minimum note size; in that case the
+  // minimum wins so a note never collapses below its floor.
+  if (min > max) {
+    return min
+  }
   return Math.min(Math.max(value, min), max)
 }
 
