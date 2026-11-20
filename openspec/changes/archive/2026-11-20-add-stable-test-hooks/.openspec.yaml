@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-20
+# Test hooks only: the DOM gains attributes and nothing about behaviour changes.
+skip_specs: true

@@ -21,8 +21,16 @@ export const TrashZone = forwardRef(function TrashZone(
   ]
     .filter(Boolean)
     .join(' ')
+  const state = danger ? 'danger' : active ? 'armed' : 'idle'
   return (
-    <div ref={ref} className={className} role="region" aria-label="Trash zone">
+    <div
+      ref={ref}
+      className={className}
+      role="region"
+      aria-label="Trash zone"
+      data-testid="trash"
+      data-state={state}
+    >
       <span className="trash__icon" aria-hidden>
         🗑
       </span>

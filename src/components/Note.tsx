@@ -135,11 +135,16 @@ export const Note = memo(function Note({
       role="group"
       tabIndex={0}
       aria-label={note.text.trim() === '' ? 'Empty note' : `Note: ${note.text.slice(0, 60)}`}
+      data-testid="note"
+      data-color={note.color}
+      data-dragging={dragVisual ? 'true' : undefined}
+      data-over-trash={dragVisual?.overTrash ? 'true' : undefined}
       onPointerDown={() => dispatch({ type: 'bringToFront', id: note.id })}
       onKeyDown={handleKeyDown}
     >
       <div
         className="note__bar"
+        data-testid="note-bar"
         onPointerDown={(event) => onStartMove(note, event)}
       >
         <span className="note__grip" aria-hidden />
@@ -154,6 +159,7 @@ export const Note = memo(function Note({
               role="radio"
               aria-checked={color === note.color}
               aria-label={`Set note color ${color}`}
+              data-testid={`note-color-${color}`}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => dispatch({ type: 'setColor', id: note.id, color })}
             />
@@ -163,6 +169,7 @@ export const Note = memo(function Note({
       {editing ? (
         <textarea
           className="note__editor"
+          data-testid="note-editor"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={commitEdit}
@@ -175,6 +182,7 @@ export const Note = memo(function Note({
       ) : (
         <div
           className="note__body"
+          data-testid="note-body"
           onPointerDown={(event) => onStartMove(note, event)}
           onDoubleClick={beginEdit}
         >
@@ -188,6 +196,7 @@ export const Note = memo(function Note({
       <button
         type="button"
         className="note__resize"
+        data-testid="note-resize"
         aria-label="Resize note"
         onPointerDown={(event) => {
           event.stopPropagation()

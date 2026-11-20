@@ -315,6 +315,7 @@ export function Board() {
       />
       <div
         className="board"
+        data-testid="board"
         ref={boardRef}
         onPointerDown={handleBoardPointerDown}
       >
@@ -334,6 +335,7 @@ export function Board() {
         {createPreview && (
           <div
             className="board__preview"
+            data-testid="board-preview"
             style={{
               left: createPreview.x,
               top: createPreview.y,
@@ -344,11 +346,12 @@ export function Board() {
           />
         )}
         {removedNote && (
-          <div className="undo-toast" role="status" aria-live="polite">
+          <div className="undo-toast" data-testid="undo-toast" role="status" aria-live="polite">
             <span>Note deleted</span>
             <button
               type="button"
               className="undo-toast__action"
+              data-testid="undo-action"
               onClick={() => {
                 dispatch({ type: 'restore', note: removedNote })
                 setFocusNoteId(removedNote.id)
