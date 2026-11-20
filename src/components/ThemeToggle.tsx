@@ -32,6 +32,7 @@ export function ThemeToggle({ preference, onSelect }: ThemeToggleProps) {
             preference === option ? ' is-active' : ''
           }`}
           onClick={() => onSelect(option)}
+          title={THEME_LABELS[option]}
         >
           <span aria-hidden>{GLYPHS[option]}</span>
         </button>
