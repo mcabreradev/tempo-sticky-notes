@@ -9,10 +9,13 @@ export default defineConfig({
   fullyParallel: true,
   retries: 0,
   reporter: [['list']],
+  // Keep artifacts outside the repo: trace recording wrote into
+  // test-results/ from several workers and failed on close (ENOENT).
+  outputDir: 'node_modules/.tmp/playwright-results',
   use: {
     baseURL: `http://localhost:${PORT}`,
     viewport: VIEWPORT,
-    trace: 'retain-on-failure',
+    trace: 'off',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
@@ -23,7 +26,9 @@ export default defineConfig({
   webServer: {
     command: `bun run build && bun run preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: true,
+    // Never reuse a server: a stale preview from another checkout silently
+    // serves a different build and the failures look like product bugs.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 })

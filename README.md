@@ -175,7 +175,9 @@ cross-engine behaviour.
 | `e2e/persistence.spec.ts` | 3 | Reload restores geometry, text and colour; corrupt payload starts empty; sync reaches `Synced` and settles to `Saved locally` |
 | `e2e/keyboard.spec.ts` | 5 | Focusable notes with labels, arrow move, Shift+arrow resize, Enter/Escape editing, Delete + Undo, tab order into the palette |
 
-Last recorded run: `48 passed` (24 scenarios on each engine, ~25 s), with no browser console errors.
+Last recorded run: `48 passed` (24 scenarios on each engine, ~20 s). The suite was run six times in a
+row without a flake; its artifacts are written under `node_modules/.tmp` and it never reuses a preview
+server, so a stale checkout on port 4173 cannot make the results lie.
 
 | Browser | Mouse flows | Keyboard flows | Notes |
 |---|---|---|---|
