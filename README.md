@@ -12,8 +12,8 @@ state library, no UI kit**. React DOM is the only runtime dependency.
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&amp;logoColor=white">
   <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&amp;logoColor=white">
   <img alt="Runtime dependencies: React only" src="https://img.shields.io/badge/runtime_deps-React_only-2f6f4f">
-  <img alt="112 unit tests" src="https://img.shields.io/badge/unit_tests-112-2f6f4f">
-  <img alt="48 browser scenarios" src="https://img.shields.io/badge/browser_scenarios-48-2f6f4f">
+  <img alt="127 unit tests" src="https://img.shields.io/badge/unit_tests-127-2f6f4f">
+  <img alt="60 browser scenarios" src="https://img.shields.io/badge/browser_scenarios-60-2f6f4f">
 </p>
 
 ![Drawing a note, writing in it, moving it, resizing it, recolouring it, deleting it and undoing](docs/demo.gif)
@@ -39,8 +39,8 @@ Drag on the cork board to make your first note. Everything else is discoverable 
 
 Also in: **inline text editing** (blur or `⌘`/`Ctrl`+`Enter` saves, `Esc` discards) · **bring to
 front** on press · **localStorage persistence** that survives reloads and refuses to crash on invalid
-or blocked storage · **six pastel colours** · **an async REST mirror** that reports syncing, synced and
-failed, and offers Retry.
+or blocked storage · **six pastel colours** · **a light / dark / system theme** · **an async REST
+mirror** that reports syncing, synced and failed, and offers Retry.
 
 The edge cases are the part worth reviewing: `Esc` cancels a move or resize and restores the exact
 previous geometry, a note dragged over the bin and back out is kept, every note is clamped inside the
@@ -68,9 +68,12 @@ keys — deleting hands focus to the neighbouring note, and the sync status anno
 live region, so a screen reader is not told the note count on every save. `eslint-plugin-jsx-a11y` is
 part of the lint gate, not a good intention.
 
-## Light and dark
+## Themes
 
-The board follows `prefers-color-scheme`; both themes live in the same stylesheet, no JavaScript.
+The toolbar carries a three-way switch — **system · light · dark** — and the choice is remembered
+across reloads. A small inline script in `index.html` applies the stored preference before the first
+paint, so a dark board never flashes white, and the resolved theme is a `data-theme` attribute on
+`<html>`; both palettes live in the same stylesheet.
 
 | Light | Dark |
 |---|---|
@@ -114,10 +117,10 @@ pointer / keyboard
 
 | Layer | Lives in | Rule it keeps | Covered by |
 |---|---|---|---|
-| Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 32 unit tests |
+| Domain and state | `domain/note.ts`, `app/store.ts`, `app/theme.ts` | Pure functions and a reducer: no DOM, no React | 43 unit tests |
 | Geometry and input | `app/boardGeometry.ts`, `hooks/`, `components/Board.tsx` | Measured once per gesture; one engine, three sessions | 11 + 45 tests |
 | Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 15 unit tests |
-| View | `components/`, `index.css` | Renders state, reports intent; no note data in the DOM | 9 tests |
+| View | `components/`, `index.css` | Renders state, reports intent; no note data in the DOM | 13 tests |
 
 ```
 src/
@@ -126,24 +129,27 @@ src/
   app/notesContext.ts         State / dispatch / sync contexts
   app/NotesProvider.tsx       Hydration, debounced persistence, serialised sync, retry
   app/boardGeometry.ts        Measures the board and the strip
+  app/theme.ts                Theme preference: parse, persist, apply
   hooks/useDrag.ts            Pointer-capture drag engine
   hooks/useNoteGestures.ts    Create, move and resize as session factories
   components/Board.tsx        Composition: store, undo, focus, keyboard, layout
   components/Note.tsx         Rendering, editing, palette, keyboard map
-  components/Toolbar.tsx      New note, sync status, note count
+  components/ThemeToggle.tsx  System · light · dark switch
+  components/Toolbar.tsx      New note, theme, sync status, note count
   components/TrashZone.tsx    The drop strip
   components/ErrorBoundary.tsx  Recoverable screen instead of a blank page
   infra/                      localStorage adapter + REST mock
   test/                       jsdom stubs and the shared board harness
 e2e/                          Playwright suite, run against the production build
+scripts/doc-assets.mjs        Regenerates the screenshots and the demo GIF
 openspec/                     Capability specs and the archived change history
 ```
 
 ## Testing
 
 ```bash
-bun run test        # 112 unit and interaction tests (jsdom)
-bun run test:e2e    # 48 browser scenarios: 24 × Chromium and Firefox
+bun run test        # 127 unit and interaction tests (jsdom)
+bun run test:e2e    # 60 browser scenarios: 30 × Chromium and Firefox
 bun run lint        # ESLint: react-hooks, react-refresh, jsx-a11y
 bun run build       # tsc -b (strict) + vite build
 ```
@@ -159,6 +165,7 @@ The browser suite needs its engines once per machine: `bun run test:e2e:install`
 | `hooks/useDrag.test.tsx` | 7 | Deltas, movement outside the element, `Esc`, `pointercancel`, sequential sessions, unmount teardown |
 | `index.css.test.ts` | 7 | PostCSS AST guard: no Sass-only nesting, a background per colour, strip height defined once, `sr-only`, crash screen |
 | `components/board.regressions.test.tsx` | 6 | Escape-then-edit, palette radio group, stacking no-op, focus after delete, viewport clamp |
+| `app/theme.test.ts` · `components/theme.test.tsx` | 11 · 4 | Theme preference parsing, persistence, pre-paint application, the toggle control |
 | `app/boardGeometry.test.ts` · `infra/mockApi.test.ts` · `components/ErrorBoundary.test.tsx` | 4 · 3 · 2 | Measured geometry, async mock, crash screen |
 
 The component suite runs through the **React Compiler**, exactly like the production build, so a
@@ -170,6 +177,10 @@ cross-engine behaviour. Selectors are `data-testid`-based and interaction state 
 attributes, so renaming a style class cannot break the suite. It asserts concrete numbers, so a
 regression names the value that moved: create → `240×160` at `(120, 150)`, move → `+40/−30`, resize →
 `300×190` with the top-left anchored, keyboard → `64,64 → 80,72`.
+
+The media in `docs/` is generated the same way, not hand-cropped: `bun run docs:shots` and
+`bun run docs:demo` drive the production build with Playwright and encode with ffmpeg, so the GIF in
+this README is the app as it ships (`scripts/doc-assets.mjs`).
 
 ## Decisions
 
