@@ -53,9 +53,12 @@ but outside the trash zone snaps back above it.
 | Recolor | Hover the note, click a swatch | `Tab` to the palette, arrows to change colour, `Space`/`Enter` to apply |
 | Delete | Drag onto the trash strip | `Delete` / `Backspace` (focus moves to the neighbour) |
 | Cancel a gesture | `Escape` | `Escape` |
+| Theme | Three-way control in the toolbar: System · Light · Dark | `Tab` to it, `Enter` to apply |
 
 Notes are focusable elements with a visible focus ring and an accessible name built from their text,
-so the board is operable without a pointer.
+so the board is operable without a pointer. The theme control behaves the same way: **System** follows
+the operating system (and reacts to a live change), while **Light** and **Dark** override it and are
+remembered across reloads under `sticky-notes-theme-v1`.
 
 ## Architecture
 
@@ -112,6 +115,7 @@ is composed; no board code changes.
 | Domain and state | `domain/note.ts`, `app/store.ts` | Pure functions and a reducer: no DOM, no React | 32 unit tests |
 | Geometry and input | `app/boardGeometry.ts`, `hooks/useDrag.ts`, `hooks/useNoteGestures.ts`, `components/Board.tsx` | Measured once per gesture; one gesture engine, three sessions | 4 + 7 unit tests, 45 interaction tests |
 | Infrastructure | `infra/persistence.ts`, `infra/mockApi.ts` | Storage never throws at the app; the API is an interface | 15 unit tests |
+| Preferences | `app/theme.ts`, `app/useTheme.ts`, `components/ThemeToggle.tsx` | Resolved once, written to the document root; the control reads it back | 11 unit + 4 interaction tests |
 | View | `components/`, `index.css` | Renders state, reports intent; no note data lives in the DOM | 7 stylesheet + 2 boundary tests |
 
 ## Project layout
@@ -121,6 +125,9 @@ src/
   domain/note.ts            Note model, palette, pure geometry helpers
   app/store.ts              Board reducer and actions (single source of truth)
   app/notesContext.ts       State / dispatch / sync contexts and their hooks
+  app/theme.ts              Theme preference: parse, resolve, persist, apply to the root
+  app/useTheme.ts           Hook: hydrate, follow the system scheme, persist a choice
+  components/ThemeToggle.tsx Three-way radiogroup in the toolbar
   app/NotesProvider.tsx     Hydration, debounced persistence, serialised sync, retry
   app/boardGeometry.ts      Measures the board and the trash strip from the DOM
   hooks/useDrag.ts          Pointer-capture drag engine (create, move, resize, cancel)
@@ -152,7 +159,7 @@ consumer.
 ## Testing and verification
 
 ```bash
-bun run test            # unit and interaction tests: 112, in jsdom
+bun run test            # unit and interaction tests: 127, in jsdom
 bun run test:e2e        # browser suite: 24 scenarios × Chromium and Firefox
 bun run lint            # ESLint, flat config (React hooks, react-refresh, jsx-a11y)
 bun run build           # tsc -b (strict) + vite build
@@ -178,6 +185,8 @@ bun run test:e2e:install    # playwright install chromium firefox
 | `components/board.interactions.test.tsx` | 39 | Pointer and keyboard flows end to end: create/move/resize/clamp/trash/undo/stacking/edit/colour/restore/sync |
 | `components/board.regressions.test.tsx` | 6 | Escape-then-edit, palette roving tabindex, stacking no-op, control-press stacking, focus after delete, viewport clamp |
 | `components/ErrorBoundary.test.tsx` | 2 | Renders children; shows a recoverable screen when a child throws |
+| `app/theme.test.ts` | 11 | Preference parsing with fallback, resolution against both system schemes, storage that throws, the attributes written to the root |
+| `components/theme.test.tsx` | 4 | System default, explicit choice applied and stored, stored choice restored on load, corrupt value falls back to system |
 
 ### Browser suite
 
@@ -193,10 +202,11 @@ so renaming a style class cannot break the suite.
 | `e2e/interactions.spec.ts` | 13 | Create (draw, click, toolbar, minimum size, edge clamping), move with Escape cancel, corner resize, trash arm/hover/delete/undo/drag-out, stacking, text editing, colours |
 | `e2e/persistence.spec.ts` | 3 | Reload restores geometry, text and colour; corrupt payload starts empty; sync reaches `Synced` and settles to `Saved locally` |
 | `e2e/keyboard.spec.ts` | 5 | Focusable notes with labels, arrow move, Shift+arrow resize, Enter/Escape editing, Delete + Undo, tab order into the palette |
+| `e2e/theme.spec.ts` | 6 | System default, explicit dark that repaints and survives a reload, light overriding a dark system, live system following, corrupt preference fallback, keyboard operation |
 
-Last recorded run: `48 passed` (24 scenarios on each engine, ~20 s). The suite was run six times in a
-row without a flake; its artifacts are written under `node_modules/.tmp` and it never reuses a preview
-server, so a stale checkout on port 4173 cannot make the results lie.
+Last recorded run: `60 passed` (30 scenarios on each engine, ~28 s). The suite is run repeatedly while it
+changes; its artifacts are written under `node_modules/.tmp` and it never reuses a preview server, so a
+stale checkout on port 4173 cannot make the results lie.
 
 | Browser | Mouse flows | Keyboard flows | Notes |
 |---|---|---|---|
@@ -231,6 +241,9 @@ The brief left these open; each one is a deliberate choice, not an accident.
 - **Bun** instead of the brief's pnpm: the scaffold already shipped `bun.lock` and bun is this
   environment's toolchain. The npm scripts are plain `vite` / `vitest` / `tsc` / `eslint` commands, so
   any package manager can run them.
+- **The theme is resolved in JavaScript and written to the document root** (`data-theme="light|dark"`)
+  instead of duplicating the dark token block in two CSS contexts, and a small pre-paint script in
+  `index.html` applies it before the bundle boots so a reload never flashes the wrong palette.
 - **No runtime dependency was added.** Vitest, jsdom, Testing Library and Playwright are dev-only;
   React and React DOM remain the only production dependencies.
 - **The browser suite tests the production build**, not the dev server, and it is a separate command:

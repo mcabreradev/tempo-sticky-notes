@@ -1,10 +1,14 @@
 import type { SyncStatus } from '../app/notesContext'
+import type { ThemePreference } from '../app/theme'
+import { ThemeToggle } from './ThemeToggle'
 
 interface ToolbarProps {
   noteCount: number
   syncStatus: SyncStatus
+  themePreference: ThemePreference
   onNewNote: () => void
   onRetrySync: () => void
+  onSelectTheme: (preference: ThemePreference) => void
 }
 
 const STATUS_LABEL: Record<SyncStatus, string> = {
@@ -17,11 +21,13 @@ const STATUS_LABEL: Record<SyncStatus, string> = {
 export function Toolbar({
   noteCount,
   syncStatus,
+  themePreference,
   onNewNote,
   onRetrySync,
+  onSelectTheme,
 }: ToolbarProps) {
   return (
-    <header className="toolbar">
+    <header className="toolbar" data-testid="toolbar">
       <div className="toolbar__brand">
         <h1>Sticky Notes</h1>
         <p className="toolbar__hint">Drag on the cork board to create a note</p>
@@ -34,6 +40,7 @@ export function Toolbar({
       >
         + New note
       </button>
+      <ThemeToggle preference={themePreference} onSelect={onSelectTheme} />
       {/* The live region is its own element: wrapping the whole block made the
           screen reader announce the count and the Retry button on every save. */}
       <span className="sr-only" role="status">
