@@ -15,7 +15,7 @@ notes live in your own browser, so nothing you type leaves it.
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&amp;logoColor=white">
   <img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&amp;logoColor=white">
   <img alt="Runtime dependencies: React only" src="https://img.shields.io/badge/runtime_deps-React_only-2f6f4f">
-  <img alt="141 unit tests" src="https://img.shields.io/badge/unit_tests-141-2f6f4f">
+  <img alt="144 unit tests" src="https://img.shields.io/badge/unit_tests-144-2f6f4f">
   <img alt="93 browser scenarios" src="https://img.shields.io/badge/browser_scenarios-93-2f6f4f">
 </p>
 
@@ -162,7 +162,7 @@ openspec/                     Capability specs and the archived change history
 ## Testing
 
 ```bash
-bun run test        # 141 unit and interaction tests (jsdom)
+bun run test        # 144 unit and interaction tests (jsdom)
 bun run test:e2e    # 93 browser scenarios: 31 × Chromium, Firefox and WebKit
 bun run lint        # ESLint: react-hooks, react-refresh, jsx-a11y
 bun run build       # tsc -b (strict) + vite build
@@ -182,6 +182,7 @@ The browser suite needs its engines once per machine: `bun run test:e2e:install`
 | `app/theme.test.ts` | 11 | Preference parsing with fallback, resolution against both schemes, storage that throws, root attributes |
 | `components/theme.test.tsx` | 4 | System default, choice applied and stored, stored choice restored, corrupt value falls back |
 | `app/themeBoot.parity.test.ts` | 13 | The pre-paint script and `app/theme.ts` agree on every preference, scheme and a throwing storage |
+| `app/deploymentHeaders.test.ts` | 3 | The CSP pins the inline script by hash; the other security headers are set |
 | `app/boardGeometry.test.ts` · `infra/mockApi.test.ts` · `components/ErrorBoundary.test.tsx` | 4 · 3 · 2 | Measured geometry, async mock, crash screen |
 
 The component suite runs through the **React Compiler**, exactly like the production build, so a
@@ -214,6 +215,27 @@ this README is the app as it ships (`scripts/doc-assets.mjs`).
   rectangle) return the same state object, so they cost no render, no `localStorage` write and no
   sync.
 - `pointermove` is **not** coalesced with `requestAnimationFrame`; see Decisions for why.
+
+## Deployment
+
+`main` deploys to Vercel as a static site; `vercel.json` carries the headers, and they are tested
+rather than assumed (`deploymentHeaders.test.ts` recomputes the script hash and fails if the config
+drifts).
+
+| Header | Value | Why |
+|---|---|---|
+| `Content-Security-Policy` | `script-src 'self' 'sha256-…'` · `style-src 'self' 'unsafe-inline'` · `default-src 'self'` · `object-src 'none'` · `base-uri 'none'` · `frame-ancestors 'none'` · `form-action 'none'` | The app ships exactly **one** inline script — the pre-paint theme snippet — so it is pinned by hash instead of opening `script-src` to `'unsafe-inline'`. Styles cannot be pinned the same way: React writes note geometry as inline `style` attributes, and a stricter policy would leave every note at 0,0. |
+| `X-Content-Type-Options` | `nosniff` | |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | |
+| `X-Frame-Options` + `frame-ancestors` | `DENY` / `'none'` | The board is not meant to be framed. |
+| `Cross-Origin-Opener-Policy` | `same-origin` | |
+| `Permissions-Policy` | `camera=()`, `microphone=()`, `geolocation=()`, `payment=()` | None of them are used. |
+| `Cache-Control` on `/assets/*` | `public, max-age=31536000, immutable` | File names are content-hashed. |
+
+Verified by serving the production build with these exact headers: **zero CSP violations**, notes keep
+their geometry, the theme is applied before paint, dragging and the trash hit test work. The same
+headers are what makes `'unsafe-inline'` unnecessary for scripts — the inline snippet is allowed by
+being byte-identical to the pinned hash, and the test above is what stops that from rotting.
 
 ## Decisions
 
@@ -266,9 +288,9 @@ openspec archive <change>              # applies its deltas to openspec/specs/ a
 Built as a front-end take-home: React + TypeScript + Vite, three required features and five optional
 ones, no UI or drag-and-drop library.
 
-Deployed as a static build on Vercel, so the live link always matches `main`. There is no CI pipeline:
-the gates in Testing are run locally before each merge, which is why the badges are counts rather than
-build status.
+Deployed as a static build on Vercel, so the live link always matches `main` (see Deployment for the
+headers it serves). There is no CI pipeline: the gates in Testing are run locally before each merge,
+which is why the badges are counts rather than build status.
 
 ## License
 
