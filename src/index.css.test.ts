@@ -36,4 +36,12 @@ describe('index.css', () => {
       expect(css).toMatch(new RegExp(`\\.note--${color}\\s*\\{[^}]*background`))
     }
   })
+
+  it('keeps the New note button readable on its pastel background', () => {
+    // Regression: the button used --chrome-text, which turns light in dark
+    // mode, leaving cream text on a pale yellow background.
+    const block = css.match(/\.toolbar__new\s*\{[^}]*\}/)?.[0] ?? ''
+    expect(block).toContain('var(--note-ink)')
+    expect(block).not.toContain('var(--chrome-text)')
+  })
 })

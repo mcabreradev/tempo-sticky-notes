@@ -5,7 +5,8 @@
   --chrome: rgba(255, 251, 244, 0.92);
   --chrome-border: rgba(120, 84, 48, 0.25);
   --chrome-text: #4a3826;
-  --chrome-muted: #8a7358;
+  /* 5.1:1 on the translucent toolbar over cork; #8a7358 was 3.98:1. */
+  --chrome-muted: #78624a;
 
   --note-yellow: #fdf3a2;
   --note-yellow-edge: #e9d76a;
@@ -110,7 +111,9 @@ body {
   font-weight: 600;
   padding: 7px 14px;
   border-radius: 7px;
-  color: var(--chrome-text);
+  /* Sits on a pastel note colour, so it keeps the note ink in both schemes;
+     the chrome text token flips light in dark mode and would vanish here. */
+  color: var(--note-ink);
   background: var(--note-yellow);
   border: 1px solid var(--note-yellow-edge);
   cursor: pointer;
